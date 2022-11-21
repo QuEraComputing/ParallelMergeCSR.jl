@@ -1,7 +1,8 @@
 module ParallelMergeCSR
 
 
-using SparseArrays
+using SparseArrays: SparseArrays, AbstractSparseMatrix, DenseInputVecOrMat, nonzeros, nonzeroinds, rowvals, nzrange
+using LinearAlgebra
 
 include("types.jl")
 include("threaded.jl")
