@@ -57,13 +57,14 @@ function threaded_fill!(A::StridedArray,α::Number)
     reshape(A,A_dims)
 end
 
-function threaded_mul!(C::StridedVecOrMat, A::AbstractSparseMatrixCSC, B::DenseInputVecOrMat, α::Number, β::Number)
+function threaded_mul!(C::StridedVecOrMat, A::AbstractSparseMatrixCSR, B::DenseInputVecOrMat, α::Number, β::Number)
     # john's implementation goes here
 end
 
 
 
 
+#=
 # y = α*transpose(A)*x + β*y
 for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
     @eval function threaded_mul!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSR}, B::DenseInputVecOrMat, α::Number, β::Number)
@@ -101,10 +102,6 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
                 end
             end
         end
-        C
+    end
 end
-
-
-
-
-
+=#
