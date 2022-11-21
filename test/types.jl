@@ -8,3 +8,6 @@ struct SparseMatrixCSR{Tv,Ti} <: AbstractSparseMatrixCSR{Tv,Ti}
     colval::Vector{Ti}      # Col indices of stored values
     nzval::Vector{Tv}       # Stored values, typically nonzeros
 end
+
+
+
