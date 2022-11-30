@@ -1,8 +1,16 @@
 using ParallelMergeCSR
 using SparseArrays
 
-a = sprand(100, 100, 0.01)
-b = SparseMatrixCSR(a.n, a.m, a.colptr, a.rowval, a.nzval)
+
+
+
+# b = SparseMatrixCSR(n, m, rowptr, colval, nzval)
+
+# tests
+# ---------------
+# Base.size
+# Base.getindex
+
 
 
 
