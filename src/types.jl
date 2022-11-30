@@ -1,4 +1,4 @@
-abstract type AbstractSparseMatrixCSR{Tv,Ti} end
+abstract type AbstractSparseMatrixCSR{Tv,Ti} <: AbstractSparseMatrix{Tv,Ti} end
 
 struct SparseMatrixCSR{Tv,Ti} <: AbstractSparseMatrixCSR{Tv,Ti} 
     m::Int                  # Number of rows
@@ -8,4 +8,20 @@ struct SparseMatrixCSR{Tv,Ti} <: AbstractSparseMatrixCSR{Tv,Ti}
     nzval::Vector{Tv}      # Stored values, typically nonzeros
 end
 
-Base.size(sm::SparseMatrixCSR) = (sm.m, sm.n)
+
+
+Base.size(sm::AbstractSparseMatrixCSR) = (sm.m, sm.n)
+
+function Base.getindex(sm::AbstractSparseMatrixCSR{Tv,Ti},row::Integer,col::Integer) where {Tv,Ti}
+    @assert 0 < row ≤ size(sm,1)
+    @assert 0 < col ≤ size(sm,2)
+
+    lb = sm.rowptr[row]
+    ub = sm.rowptr[row+1]
+    ind = searchsortedlast(sm.colval[lb:ub],col)
+    
+    sm.colval[ind] == col && return sm.nzval[ind]
+
+    return zero(Tv)
+
+end
