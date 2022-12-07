@@ -11,7 +11,10 @@ using SparseArrays: SparseArrays,
                     nzrange
 using LinearAlgebra
 
-export SparseMatrixCSR
+export SparseMatrixCSR,
+    indptr,
+    colvals,
+    getnzval
 
 include("types.jl")
 include("threaded.jl")
