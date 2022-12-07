@@ -15,16 +15,30 @@ using LinearAlgebra
     b = SparseMatrixCSR(n, m, rowptr, colval, nzval)
     
     @test size(b) == (n,m)
-    @test getrowptr(b) == rowptr
-    @test getcolval(b) == colval
+    @test indptr(b) == rowptr
+    @test colvals(b) == colval
     @test nonzeros(b) == nzval
 
-    Matrix(b) == [
+    @test Matrix(b) == [
         [10  20   0   0   0   0]
         [0  30   0  40   0   0]
         [0   0  50  60  70   0]
         [0   0   0   0   0  80]
-    ]   
+    ]
+
+    a = SparseMatrixCSC([
+        [10  20   0   0   0   0]
+        [0  30   0  40   0   0]
+        [0   0  50  60  70   0]
+        [0   0   0   0   0  80]]
+    )
+
+    @test b ==  SparseMatrixCSR(a)
+
+    @test b[1,1] == 10
+    @test b[2,2] == 30
+    @test b[4,1] == 0
+    
 end
 
 
