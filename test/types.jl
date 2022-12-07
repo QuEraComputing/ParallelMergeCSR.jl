@@ -12,28 +12,36 @@ using LinearAlgebra
     colval = [  1,  2,  2,  4,  3,  4,  5,  6 ]   
     rowptr = [  1,  3,  5,  8,  9 ]
     
-    b = SparseMatrixCSR(n, m, rowptr, colval, nzval)
+    a = SparseMatrixCSR(n, m, rowptr, colval, nzval)
     
-    @test size(b) == (n,m)
-    @test indptr(b) == rowptr
-    @test colvals(b) == colval
-    @test nonzeros(b) == nzval
+    @test size(a) == (n,m)
+    @test indptr(a) == rowptr
+    @test colvals(a) == colval
+    @test nonzeros(a) == nzval
 
-    @test Matrix(b) == [
+    @test Matrix(a) == [
         [10  20   0   0   0   0]
         [0  30   0  40   0   0]
         [0   0  50  60  70   0]
         [0   0   0   0   0  80]
     ]
 
-    a = SparseMatrixCSC([
+    b = SparseMatrixCSC([
         [10  20   0   0   0   0]
         [0  30   0  40   0   0]
         [0   0  50  60  70   0]
         [0   0   0   0   0  80]]
     )
 
-    @test b ==  SparseMatrixCSR(a)
+    @test a == SparseMatrixCSR(b)
+
+
+    @test a == SparseMatrixCSR([
+        [10  20   0   0   0   0]
+        [0  30   0  40   0   0]
+        [0   0  50  60  70   0]
+        [0   0   0   0   0  80]]
+    )
 
     @test b[1,1] == 10
     @test b[2,2] == 30

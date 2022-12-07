@@ -12,7 +12,6 @@ using SparseArrays: SparseArrays,
 using LinearAlgebra
 
 export SparseMatrixCSR,
-    Matrix,
     indptr,
     colvals,
     getnzval
