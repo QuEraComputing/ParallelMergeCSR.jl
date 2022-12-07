@@ -40,19 +40,3 @@ using LinearAlgebra
     @test b[4,1] == 0
     
 end
-
-
-
-
-
-
-
-# tests
-# ---------------
-# Base.size
-# Base.getindex
-
-
-
-
-
