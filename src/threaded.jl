@@ -117,7 +117,7 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
 
     @eval function mul!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSR}, B::DenseInputVecOrMat, α::Number, β::Number)
 
-        if stride(C,1) < stride(C,2) # implement different code based on strides
+        if stride(B,1) < stride(B,2) # implement different code based on strides
             # col major order
             mul_col_major!(C,xA,B,α,β)
         else
