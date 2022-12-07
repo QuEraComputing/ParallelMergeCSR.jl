@@ -1,4 +1,4 @@
-abstract type AbstractSparseMatrixCSR{Tv,Ti} <: AbstractSparseMatrix{Tv,Ti} end
+abstract type AbstractSparseMatrixCSR{Tv,Ti<:Integer} <: AbstractSparseMatrix{Tv,Ti} end
 
 struct SparseMatrixCSR{Tv,Ti} <: AbstractSparseMatrixCSR{Tv,Ti} 
     m::Int                  # Number of rows
@@ -6,25 +6,69 @@ struct SparseMatrixCSR{Tv,Ti} <: AbstractSparseMatrixCSR{Tv,Ti}
     rowptr::Vector{Ti}      # Row i is in rowptr[i]:(rowptr[i+1]-1)
     colval::Vector{Ti}      # Col indices of stored values
     nzval::Vector{Tv}      # Stored values, typically nonzeros
+    function SparseMatrixCSR{Tv,Ti}(m::Integer, n::Integer, rowptr::Vector{Ti},
+                            colval::Vector{Ti}, nzval::Vector{Tv}) where {Tv,Ti<:Integer}
+        @noinline throwsz(str, lbl, k) =
+            throw(ArgumentError("number of $str ($lbl) must be ≥ 0, got $k"))
+        m < 0 && throwsz("rows", 'm', m)
+        n < 0 && throwsz("columns", 'n', n)
+        new{Tv,Ti}(Int(m), Int(n), rowptr, colval, nzval)
+    end
+end
+function SparseMatrixCSR(m::Integer, n::Integer, rowptr::Vector, colval::Vector, nzval::Vector)
+    Tv = eltype(nzval)
+    Ti = promote_type(eltype(rowptr), eltype(colval))
+    SparseArrays.sparse_check_Ti(m, n, Ti)
+    sparse_check(m, rowptr, colval, nzval)
+    # silently shorten colval and nzval to usable index positions.
+    maxlen = abs(widemul(m, n))
+    isbitstype(Ti) && (maxlen = min(maxlen, typemax(Ti) - 1))
+    length(colval) > maxlen && resize!(colval, maxlen)
+    length(nzval) > maxlen && resize!(nzval, maxlen)
+    SparseMatrixCSR{Tv,Ti}(m, n, rowptr, colval, nzval)
 end
 
+function sparse_check(m::Integer, rowptr::Vector{Ti}, colval, nzval) where Ti
+    # String interpolation is a performance bottleneck when it's part of the same function,
+    # ensure we only do it once committed to the error.
+    throwstart(ckp) = throw(ArgumentError("$ckp == rowptr[1] != 1"))
+    throwmonotonic(ckp, ck, k) = throw(ArgumentError("$ckp == rowptr[$(k-1)] > rowptr[$k] == $ck"))
 
+    sparse_check_length("rowptr", rowptr, m+1, String) # don't check upper bound
+    ckp = Ti(1)
+    ckp == rowptr[1] || throwstart(ckp)
+    @inbounds for k = 2:m+1
+        ck = rowptr[k]
+        ckp <= ck || throwmonotonic(ckp, ck, k)
+        ckp = ck
+    end
+    sparse_check_length("colval", colval, ckp-1, Ti)
+    sparse_check_length("nzval", nzval, 0, Ti) # we allow empty nzval !!!
+end
+function sparse_check_length(rowstr, colval, minlen, Ti)
+    throwmin(len, minlen, rowstr) = throw(ArgumentError("$len == length($rowstr) < $minlen"))
+    throwmax(len, max, rowstr) = throw(ArgumentError("$len == length($rowstr) >= $max"))
+
+    len = length(colval)
+    len >= minlen || throwmin(len, minlen, rowstr)
+    !isbitstype(Ti) || len < typemax(Ti) || throwmax(len, typemax(Ti), rowstr)
+end
 
 function SparseMatrixCSR(sm::AbstractSparseMatrixCSC{Tv,Ti}) where {Tv,Ti}
     n,m = size(sm)
 
-    in_colptr = indptr(sm)
-    in_rowval = rowvals(sm)
+    in_rowptr = indptr(sm)
+    in_colval = rowvals(sm)
     in_nzval = nonzeros(sm)
 
-    nnz = in_colptr[end]
+    nnz = in_rowptr[end]
 
-    rowptr = zeros(eltype(in_colptr),n+1)
-    colval = similar(in_rowval)
+    rowptr = zeros(eltype(in_rowptr),n+1)
+    colval = similar(in_colval)
     nzval  = similar(in_nzval)
 
-    @inbounds for rowval in in_rowval
-        rowptr[rowval] += 1
+    @inbounds for colval in in_colval
+        rowptr[colval] += 1
     end
 
     cumsum = one(Ti)
@@ -37,7 +81,7 @@ function SparseMatrixCSR(sm::AbstractSparseMatrixCSC{Tv,Ti}) where {Tv,Ti}
 
     for col in 1:m
         @inbounds for ind in nzrange(sm,col)
-            row = in_rowval[ind]
+            row = in_colval[ind]
             dest = rowptr[row]
 
             colval[dest] = col
@@ -57,12 +101,10 @@ function SparseMatrixCSR(sm::AbstractSparseMatrixCSC{Tv,Ti}) where {Tv,Ti}
     return SparseMatrixCSR{Tv,Ti}(n,m,rowptr,colval,nzval)
 end
 
+
 getrowptr(sm::SparseMatrixCSR) = getfield(sm,:rowptr)
 getcolval(sm::SparseMatrixCSR) = getfield(sm,:colval)
 getnzval(sm::SparseMatrixCSR)  = getfield(sm,:nzval)
-
-
-
 # abstract interface
 indptr(sm::AbstractSparseMatrixCSR) = getrowptr(sm)
 colvals(sm::AbstractSparseMatrixCSR) = getcolval(sm)
@@ -70,8 +112,6 @@ SparseArrays.nonzeros(sm::AbstractSparseMatrixCSR) = getnzval(sm)
 
 indptr(sm::AbstractSparseMatrixCSC) = getcolptr(sm)
 SparseArrays.nzrange(sm::AbstractSparseMatrixCSR, row::Integer) = getrowptr(sm)[row]:(getrowptr(sm)[row+1]-1)
-
-
 
 Base.size(sm::AbstractSparseMatrixCSR) = (sm.m, sm.n)
 
@@ -94,7 +134,7 @@ function Base.getindex(sm::AbstractSparseMatrixCSR{Tv,Ti},row::Int,col::Int) whe
 
 end
 
-function LinearAlgebra.Matrix(sm::AbstractSparseMatrixCSR{Tv}) where Tv
+function Matrix(sm::AbstractSparseMatrixCSR{Tv}) where Tv
     dm = zeros(Tv,size(sm))
     nrow = size(sm,1)
 
@@ -111,12 +151,9 @@ function LinearAlgebra.Matrix(sm::AbstractSparseMatrixCSR{Tv}) where Tv
     end
 
     return dm 
-
 end
 
+
 # TODO:
-# create constructor from SparseMatrixCSC
-# create constructor from Dense Matrix
-# add test for canonical form for CSR
 # add method to remove zero values
 # add method to sort column indices
