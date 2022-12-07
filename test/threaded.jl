@@ -1,12 +1,47 @@
 using ParallelMergeCSR
 using BenchmarkTools
 using SparseArrays
-
-n = 100000
-A = sprand(n,n,log(n)/n)
-x = rand(n)
-y = rand(n)
+using Random
 
 
-bm_1 = @benchmark ParallelMergeCSR.threaded_mul_1!(y,A,x,1,1)
-show(stdout,bm_1)
+
+@testset "threaded_fill!" begin
+    A = zeros(Int,3,3)
+    ParallelMergeCSR.threaded_fill!(A,3)
+
+    @test A == [
+        [3 3 3]
+        [3 3 3]
+        [3 3 3]
+    ]
+
+end
+
+@testset "threaded_rmul!" begin
+    A = ones(Int,3,3)
+    ParallelMergeCSR.threaded_rmul!(A,3)
+
+    @test A == [
+        [3 3 3]
+        [3 3 3]
+        [3 3 3]
+    ]
+
+end
+
+
+@testset "threaded_lmul!" begin
+    A = ones(Int,3,3)
+    ParallelMergeCSR.threaded_lmul!(A,3)
+
+    @test A == [
+        [3 3 3]
+        [3 3 3]
+        [3 3 3]
+    ]
+
+end
+
+
+
+
