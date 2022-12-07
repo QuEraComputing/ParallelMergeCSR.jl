@@ -64,10 +64,10 @@ end
 
 
 
-
 # y = α*transpose(A)*x + β*y
 for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
-    @eval function threaded_mul!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSR}, B::DenseInputVecOrMat, α::Number, β::Number)
+    # treat csr as csc
+    @eval function mul_col_major!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSR}, B::DenseInputVecOrMat, α::Number, β::Number)
         A = xA.parent
         size(A, 2) == size(B, 1) || throw(DimensionMismatch())
         size(A, 1) == size(C, 1) || throw(DimensionMismatch())
@@ -77,30 +77,52 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
         if β != 1
             β != 0 ? threaded_rmul!(C, β) : threaded_fill!(C, zero(eltype(C)))
         end
-        if stride(C,1) < stride(C,2) # implement different code based on strides
-            for k in 1:size(C, 2)
-                Threads.@threads for col in 1:size(A, 2)
-                    @inbounds αxj = B[col,k] * α
-                    @inbounds for j in nzrange(A, col)
-                        val = $t(nzv[j])*αxj
-                        row = rv[j]
-                        out = Threads.Atomic{eltype(C)}(C[row, k])
-                        Threads.atomic_add!(out, val)
-                    end
-                end
-            end
-        else
+        
+        for k in 1:size(C, 2) # loop over columns of input
             Threads.@threads for col in 1:size(A, 2)
+                @inbounds αxj = B[col,k] * α
                 @inbounds for j in nzrange(A, col)
+                    val = $t(nzv[j])*αxj
                     row = rv[j]
-                    Aα = $t(nzv[j]) * α
-                    for k in 1:size(C, 2)
-                        val = B[col,k] * Aα
-                        out = Threads.Atomic{eltype(C)}(C[row, k])
-                        Threads.atomic_add!(out, val)
-                    end
+                    out = Threads.Atomic{eltype(C)}(C[row, k])
+                    Threads.atomic_add!(out, val)
                 end
             end
+        end
+    end
+
+    @eval function mul_row_major!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSR}, B::DenseInputVecOrMat, α::Number, β::Number)
+        A = xA.parent
+        size(A, 2) == size(B, 1) || throw(DimensionMismatch())
+        size(A, 1) == size(C, 1) || throw(DimensionMismatch())
+        size(B, 2) == size(C, 2) || throw(DimensionMismatch())
+        nzv = nonzeros(A)
+        rv = rowvals(A)
+        if β != 1
+            β != 0 ? threaded_rmul!(C, β) : threaded_fill!(C, zero(eltype(C)))
+        end
+        
+        Threads.@threads for col in 1:size(A, 2)
+            @inbounds for j in nzrange(A, col)
+                row = rv[j]
+                Aα = $t(nzv[j]) * α
+                for k in 1:size(C, 2) # loop over rows
+                    val = B[col,k] * Aα
+                    out = Threads.Atomic{eltype(C)}(C[row, k])
+                    Threads.atomic_add!(out, val)
+                end
+            end
+        end
+    end
+
+    @eval function mul!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSR}, B::DenseInputVecOrMat, α::Number, β::Number)
+
+        if stride(C,1) < stride(C,2) # implement different code based on strides
+            # col major order
+            mul_col_major!(C,xA,B,α,β)
+        else
+            # row major order
+            mul_row_major!(C,xA,B,α,β)
         end
     end
 end
