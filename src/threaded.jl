@@ -64,7 +64,7 @@ end
 
 
 
-#=
+
 # y = α*transpose(A)*x + β*y
 for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
     @eval function threaded_mul!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSR}, B::DenseInputVecOrMat, α::Number, β::Number)
@@ -104,4 +104,3 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
         end
     end
 end
-=#

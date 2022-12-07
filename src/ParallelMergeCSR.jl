@@ -1,11 +1,13 @@
 module ParallelMergeCSR
 
 using SparseArrays: SparseArrays, 
-                    AbstractSparseMatrix, 
+                    AbstractSparseMatrix,
+                    AbstractSparseMatrixCSC, 
                     DenseInputVecOrMat, 
                     nonzeros, 
                     nonzeroinds, 
                     rowvals, 
+                    getcolptr,
                     nzrange
 using LinearAlgebra
 
