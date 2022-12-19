@@ -19,6 +19,7 @@ export SparseMatrixCSR,
 
 include("types.jl")
 include("threaded.jl")
+include("mv_mul.jl")
 
 # include("gpu.jl")
 # include("distributed.jl")
