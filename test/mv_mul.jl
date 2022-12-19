@@ -85,3 +85,19 @@ end
 
     @test full_m * x == y
 end
+
+@testset "100x100" begin
+    # create matrix
+    csc_m = SparseArrays.sprand(100, 100, 0.3)
+    csr_m = m_to_csr(csc_m)
+
+    # create vector
+    x = rand(1:100, 100, 1)
+
+    # create empty solution
+    y = zeros(csr_m.m)
+
+    ParallelMergeCSR.merge_csr_mv!(csr_m, x, y)
+
+    @test csc_m * x ≈ y
+end
