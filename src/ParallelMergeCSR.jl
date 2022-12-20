@@ -14,7 +14,8 @@ using LinearAlgebra
 export SparseMatrixCSR,
     indptr,
     colvals,
-    getnzval
+    getnzval,
+    mul!
 
 include("types.jl")
 include("threaded.jl")

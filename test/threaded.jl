@@ -2,6 +2,7 @@ using ParallelMergeCSR
 using BenchmarkTools
 using SparseArrays
 using Random
+using Test
 
 
 
@@ -43,5 +44,16 @@ end
 end
 
 
+m = SparseMatrixCSR([
+    [0 1 0]
+    [0 1.0im 4]
+    [2 0 0]
+])
+m_T = transpose(m)
 
+B = ones(3)
+C = zeros(promote_type(eltype(B),eltype(m_T)),3)
+
+
+mul!(C,m_T,B,1,0)
 

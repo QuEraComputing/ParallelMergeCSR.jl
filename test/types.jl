@@ -33,7 +33,13 @@ using LinearAlgebra
         [0   0   0   0   0  80]]
     )
 
-    @test a == SparseMatrixCSR(b)
+    b_csr = SparseMatrixCSR(b)
+
+    @test size(a) == size(b_csr)
+    @test indptr(a) == indptr(b_csr)
+    @test colvals(a) == colvals(b_csr)
+    @test nonzeros(a) == nonzeros(b_csr)
+    @test a == b_csr
 
 
     @test a == SparseMatrixCSR([

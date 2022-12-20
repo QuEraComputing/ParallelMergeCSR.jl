@@ -73,7 +73,7 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
         size(A, 1) == size(C, 1) || throw(DimensionMismatch())
         size(B, 2) == size(C, 2) || throw(DimensionMismatch())
         nzv = nonzeros(A)
-        rv = rowvals(A)
+        rv = colvals(A)
         if β != 1
             β != 0 ? threaded_rmul!(C, β) : threaded_fill!(C, zero(eltype(C)))
         end
@@ -97,7 +97,7 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
         size(A, 1) == size(C, 1) || throw(DimensionMismatch())
         size(B, 2) == size(C, 2) || throw(DimensionMismatch())
         nzv = nonzeros(A)
-        rv = rowvals(A)
+        rv = colvals(A)
         if β != 1
             β != 0 ? threaded_rmul!(C, β) : threaded_fill!(C, zero(eltype(C)))
         end
