@@ -78,7 +78,7 @@ function merge_csr_mv!(A::AbstractSparseMatrixCSC, input::StridedVector, output:
                 thread_coord.y += 1
             end
 
-            output[thread_coord.x + 1] = running_total
+            output[thread_coord.x + 1] += running_total
             running_total = zero(eltype(y)) 
             thread_coord.x += 1 
         end
