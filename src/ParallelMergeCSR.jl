@@ -43,12 +43,9 @@ end
 # A matrix
 # x, y vectors
 
-# TODO: overload SparseArrays.mul!
-# TODO: add β and α arguments
-# TODO: change SparseMatrixCSR => Transpose{AbstractSparseMatrixCSC}
-#     1. colval => rowval 
-#     2. rowptr => colptr
-#     3. use iterface of SparseArrays to get these quantities
+# TODO: 
+# 1. add @inbounds to remove bounds check
+# 2. add update tests to work with CSC matrices. you can use sprand(...) to generate some matrix 
 function merge_csr_mv!(A::AbstractSparseMatrixCSC, input::StridedVector, output::StridedVector,op)
     rv = rowvals(A)
     nzval = nonzeros(A)
@@ -125,11 +122,9 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
         if β != 1
             β != 0 ? rmul!(C, β) : fill!(C, zero(eltype(C)))
         end
-        for k in 1:size(C, 2)
-            # parallel implementation goes here acting on slice C[:,k]
-            y = @view B[:,k]
-            x = @view C[:,k]
-            merge_csr_mv!(A, x, y, $t)
+        for (k,c) in enumerate(eachcol(C))
+            # parallel implementation goes here acting on slice C[:,k], B[:,k]
+            merge_csr_mv!(A, B[:,k], c, $t)
         end
         C
     end
