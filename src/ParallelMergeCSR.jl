@@ -49,10 +49,14 @@ end
 #     1. colval => rowval 
 #     2. rowptr => colptr
 #     3. use iterface of SparseArrays to get these quantities
-function merge_csr_mv!(A::SparseMatrixCSR, x, y)
-    row_end_offsets = A.rowptr[2:end]
-    nnz_indices = collect(1:length(A.nzval))
-    num_merge_items = length(A.nzval) + A.m
+function merge_csr_mv!(A::AbstractSparseMatrixCSC, input::StridedVector, output::StridedVector,op)
+    rv = rowvals(A)
+    nzval = nonzeros(A)
+    nrow = size(A,2) # view CSC tranpose as CSR.
+
+    row_end_offsets = rowvals[2:end]
+    nnz_indices = collect(1:length(nzval))
+    num_merge_items = length(nzval) + nrow
 
     num_threads = nthreads()
     items_per_thread = (num_merge_items + num_threads - 1) ÷ num_threads
@@ -66,26 +70,26 @@ function merge_csr_mv!(A::SparseMatrixCSR, x, y)
         diagonal_end = min(diagonal + items_per_thread, num_merge_items)
 
         # Get starting and ending thread coordinates (row, nnz)
-        thread_coord = merge_path_search(diagonal, A.m, length(A.nzval), row_end_offsets, nnz_indices)
-        thread_coord_end = merge_path_search(diagonal_end, A.m, length(A.nzval), row_end_offsets, nnz_indices)
+        thread_coord = merge_path_search(diagonal, nrow, length(nzval), row_end_offsets, nnz_indices)
+        thread_coord_end = merge_path_search(diagonal_end, nrow, length(nzval), row_end_offsets, nnz_indices)
 
         # Consume merge items, whole rows first
-        running_total = 0.0        
+        running_total = zero(eltype(y)) 
         while thread_coord.x < thread_coord_end.x
             while thread_coord.y < row_end_offsets[thread_coord.x + 1] - 1
-                running_total += A.nzval[thread_coord.y + 1] * x[A.colval[thread_coord.y + 1]]
+                running_total += op(nzval[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
                 thread_coord.y += 1
             end
 
-            y[thread_coord.x + 1] = running_total
-            running_total = 0.0
+            output[thread_coord.x + 1] = running_total
+            running_total = zero(eltype(y)) 
             thread_coord.x += 1 
         end
        
         # May have thread end up partially consuming a row.
         # Save result form partial consumption and do one pass at the end to add it back to y
         while thread_coord.y < thread_coord_end.y
-            running_total += A.nzval[thread_coord.y + 1] * x[A.colval[thread_coord.y + 1]]
+            running_total += op(nzval[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
             thread_coord.y += 1
         end
 
@@ -100,8 +104,8 @@ function merge_csr_mv!(A::SparseMatrixCSR, x, y)
     # println("value_carry_out: $value_carry_out")
     # println("Incomplete y: $y")
     for tid in 1:num_threads
-        if row_carry_out[tid] <= A.m
-            y[row_carry_out[tid]] += value_carry_out[tid]
+        if row_carry_out[tid] <= nrow
+            output[row_carry_out[tid]] += value_carry_out[tid]
         end
     end
 
@@ -116,23 +120,56 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
         size(A, 2) == size(C, 1) || throw(DimensionMismatch())
         size(A, 1) == size(B, 1) || throw(DimensionMismatch())
         size(B, 2) == size(C, 2) || throw(DimensionMismatch())
-        nzv = nonzeros(A)
-        rv = rowvals(A)
+        # nzv = nonzeros(A)
+        # rv = rowvals(A)
         if β != 1
             β != 0 ? rmul!(C, β) : fill!(C, zero(eltype(C)))
         end
         for k in 1:size(C, 2)
             # parallel implementation goes here acting on slice C[:,k]
-            @inbounds for col in 1:size(A, 2)
-                tmp = zero(eltype(C))
-                for j in nzrange(A, col)
-                    tmp += $t(nzv[j])*B[rv[j],k]
-                end
-                C[col,k] += tmp * α
-            end
+            y = @view B[:,k]
+            x = @view C[:,k]
+            merge_csr_mv!(A, x, y, $t)
         end
         C
     end
+end
+
+
+function atomic_add(a::AbstractVector{T},b::T) where T <: Real
+    @atomic a[1] += b
+end
+
+function atomic_add(a::AbstractVector{T},b::T) where T <: Complex
+    view_a = reinterpret(real(T),a)
+    real_b = real(b)
+    imag_b = imag(b)
+
+    @atomic view_a[1] += real_b
+    @atomic view_a[2] += imag_b
+end
+
+function SparseArrays.mul!(C::StridedVecOrMat, A::AbstractSparseMatrixCSC, B::DenseInputVecOrMat, α::Number, β::Number)
+    size(A, 2) == size(B, 1) || throw(DimensionMismatch())
+    size(A, 1) == size(C, 1) || throw(DimensionMismatch())
+    size(B, 2) == size(C, 2) || throw(DimensionMismatch())
+    nzv = nonzeros(A)
+    rv = rowvals(A)
+    if β != 1
+        β != 0 ? rmul!(C, β) : fill!(C, zero(eltype(C)))
+    end
+    for k in 1:size(C, 2)
+        @threads for col in 1:size(A, 2)
+            @inbounds αxj = B[col,k] * α
+            for j in nzrange(A, col)
+                @inbounds val = nzv[j]*αxj
+                @inbounds row = rv[j]
+                @inbounds out = C[row:row, k] # pass element as view
+                atomic_add(out,val) 
+            end
+        end
+    end
+    C
 end
 
 
