@@ -101,6 +101,34 @@ function SparseMatrixCSR(sm::AbstractSparseMatrixCSC{Tv,Ti}) where {Tv,Ti}
     return SparseMatrixCSR{Tv,Ti}(n,m,rowptr,colval,nzval)
 end
 
+function SparseMatrixCSR(dm::AbstractMatrix{Tv}) where Tv
+    n,m = size(dm)
+
+    rowptr = zeros(Int,n+1)
+    nz = 1
+    for row in 1:n
+        rowptr[row] = nz
+        row_view = @view dm[row,:]
+        nz += count(!iszero, row_view)
+    end
+    rowptr[end] = nz
+
+    colval = zeros(Int,nz-1)
+    nzval  = zeros(Tv ,nz-1)
+    for row in 1:n
+        ind = rowptr[row]
+        row_view = @view dm[row,:]
+        for (i,v) in enumerate(row_view)
+            if !iszero(v)
+                colval[ind] = i
+                nzval[ind] = v
+                ind += 1
+            end
+        end
+    end
+
+    return SparseMatrixCSR(n,m,rowptr,colval,nzval)
+end
 
 getrowptr(sm::SparseMatrixCSR) = getfield(sm,:rowptr)
 getcolval(sm::SparseMatrixCSR) = getfield(sm,:colval)
@@ -134,7 +162,7 @@ function Base.getindex(sm::AbstractSparseMatrixCSR{Tv,Ti},row::Int,col::Int) whe
 
 end
 
-function Matrix(sm::AbstractSparseMatrixCSR{Tv}) where Tv
+function LinearAlgebra.Matrix(sm::AbstractSparseMatrixCSR{Tv}) where Tv
     dm = zeros(Tv,size(sm))
     nrow = size(sm,1)
 

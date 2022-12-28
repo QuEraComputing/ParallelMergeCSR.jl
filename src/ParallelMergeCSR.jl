@@ -12,10 +12,10 @@ using SparseArrays: SparseArrays,
 using LinearAlgebra
 
 export SparseMatrixCSR,
-    Matrix,
     indptr,
     colvals,
-    getnzval
+    getnzval,
+    mul!
 
 include("types.jl")
 include("threaded.jl")
