@@ -150,8 +150,14 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
         size(A, 2) == size(C, 1) || throw(DimensionMismatch())
         size(A, 1) == size(B, 1) || throw(DimensionMismatch())
         size(B, 2) == size(C, 2) || throw(DimensionMismatch())
-        # move multiplication by beta into the multithreaded part
-        ABα = similar(C)
+        if β != 1
+            # assume the rmul! intended to come from SparseArrays
+            ## (could implement a threaded version of that as well, maybe piggyback off of impl branch)
+            # preemptively handle β so we just handle C = ABα + C
+            β != 0 ? SparseArrays.rmul!(C, β) : fill!(C, zero(eltype(C)))
+        end
+        # move multiplication by alpha into the multithreaded part
+        ABα = zeros(C)
         for (row_idx, col) in enumerate(eachcol(B))
             # merge_csr_mv!(A, x, β, y, op)
             merge_csr_mv!(A, col, α, ABα[row_idx, :], $t)
@@ -164,12 +170,10 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
 end
 
 
-# Throws error about @atomic behavior
-## Probably meant to add b to every element of a while mutating a?
 ## function names should be suffixed w/ exclamation mark
 function atomic_add!(a::AbstractVector{T},b::T) where T <: Real
     # There's an atomic_add! in Threads but has signature (x::Atomic{T}, val::T) where T <: ArithmeticTypes
-    # you'd have to wrap each
+    # you'd have to wrap each element of the array with Atomic
     # Objective: for each element in AbstractVector, atomically add b to the element
     # Can also use Atomix.jl
     for idx in 1:length(a)
@@ -198,15 +202,21 @@ function SparseArrays.mul!(C::StridedVecOrMat, A::AbstractSparseMatrixCSC, B::De
     nzv = nonzeros(A)
     rv = rowvals(A)
     if β != 1
-        β != 0 ? rmul!(C, β) : fill!(C, zero(eltype(C)))
+        # assume the rmul! intended to come from SparseArrays
+        ## (could implement a threaded version of that as well, maybe piggyback off of impl branch)
+        # preemptively handle β so we just handle C = ABα + C
+        β != 0 ? SparseArrays.rmul!(C, β) : fill!(C, zero(eltype(C)))
     end
+    # iterate over the columns of C
     for k in 1:size(C, 2)
+        # iterate over columns of A
         @threads for col in 1:size(A, 2)
+            # multiply each element of B times alpha (single value)
             @inbounds αxj = B[col,k] * α
-            for j in nzrange(A, col)
+            for j in nzrange(A, col) # range of indices in nzv of A restricted to column
                 @inbounds val = nzv[j]*αxj
                 @inbounds row = rv[j]
-                @inbounds out = C[row:row, k] # pass element as view
+                @inbounds out = @view C[row:row, k]
                 atomic_add!(out,val) 
             end
         end

@@ -2,26 +2,49 @@ using Test
 using ParallelMergeCSR
 using SparseArrays
 
-@testset "atomic_add!" begin
-    # atomic add with real
-    @testset "Real" begin
-        a = rand(Float64, 20)
-        a_copy = deepcopy(a)
+# trigger merge_csr_mv!
+@testset "Adjoint" begin
+    
+    # C = ABα + Cβ
+end
 
-        b = 1.25
+# trigger merge_csr_mv!
+@testset "Transpose" begin
 
-        ParallelMergeCSR.atomic_add!(a, b)
-        @test a == (a_copy .+ b)
-    end
+    # C = ABα + Cβ
+end
 
-    # atomic add with complex
-    @testset "Complex" begin
-        a = rand(Complex{Float64}, 20)
-        a_copy = deepcopy(a)
+@testset "Matrix x Matrix" begin
 
-        b = 2.5 + 0.8im
+    # C = ABα + Cβ
+    ## A should be CSC matrix, B should be Dense
+    ## α, β are `Number`s
+    A = sprand(5, 5, 0.2)
+    B = rand(5, 5)
+    α = 1.1
 
-        ParallelMergeCSR.atomic_add!(a, b)
-        @test a == (a_copy .+ b)
-    end
+    C = zeros(Float64, 5, 5)
+    C_copy = deepcopy(C)
+    β = 0.3
+
+    SparseArrays.mul!(C, A, B, α, β)
+    @test C ≈ Matrix(A) * B * α + C_copy * β
+
+end
+
+@testset "Matrix x Vector" begin
+
+    A = sprand(5, 5, 0.3)
+    B = rand(5)
+    α = 2.5
+
+    C = zeros(Float64, size(B))
+    C_copy = deepcopy(C)
+    β = 5.2
+
+    SparseArrays.mul!(C, A, B, α, β)
+
+    @test C ≈ Matrix(A) * B * α + C_copy * β
+    
+
 end
