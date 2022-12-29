@@ -1,7 +1,9 @@
 module ParallelMergeCSR
 
-using SparseArrays: AbstractSparseMatrixCSC
-using LinearAlgebra:Adjoint,adjoint,Transpose,transpose
+using SparseArrays
+using SparseArrays: AbstractSparseMatrixCSC,
+                    DenseInputVecOrMat
+using LinearAlgebra: Adjoint,adjoint,Transpose,transpose
 
 using Base.Threads
 
@@ -43,17 +45,51 @@ end
 # A matrix
 # x, y vectors
 
+#=
+Algorithm originally designed for CSR now needs to work for CSC
+
+CSC has fields:
+* m - number of rows
+* n - number of columns
+* colptr::Vector - column j is in colptr[j]:(colptr[j+1]-1)
+* rowval::Vector - row indices of stored values
+* nzval::Vector  - stored values, typically nonzeros
+
+CSR used to have fields: 
+* m - number of rows
+* n - number of columns
+* rowptr::Vector - row i is in rowptr[i]:(rowptr[i+1]-1)
+* colval::Vector - col indices of stored values
+* nzval::Vector - Stored values, typically non-zeros
+
+Given a matrix A in CSC, if you do transpose(A), indexing
+individual elements is fine but it's a lazy transpose.
+To materialize the changes, probably requires you perform some copy operation
+e.g. can see changes via dump(copy(transpose(m))) where m isa AbstractMatrixCSC
+
+* NOTE: we don't want the transpose to actually change the matrix dimensions,
+we do it just so the INTERNAL representation of the matrix looks like a CSR
+=#
+
+
 # TODO: 
 # 1. add @inbounds to remove bounds check
-# 2. add update tests to work with CSC matrices. you can use sprand(...) to generate some matrix 
-function merge_csr_mv!(A::AbstractSparseMatrixCSC, input::StridedVector, output::StridedVector,op)
-    rv = rowvals(A)
-    nzval = nonzeros(A)
-    nrow = size(A,2) # view CSC tranpose as CSR.
+# 2. add update tests to work with CSC matrices. you can use sprand(...) to generate some matrix
+# StridedVector is too restrictive, not even sure how you end up with a StridedVector in the first place 
+# Axβ = y
+function merge_csr_mv!(A::SparseMatrixCSC, x, β::Number, y, op)
 
-    row_end_offsets = rowvals[2:end]
-    nnz_indices = collect(1:length(nzval))
-    num_merge_items = length(nzval) + nrow
+    # transpose the CSC to CSR
+    ## colptr in CSC equiv. to rowptr in CSR
+    ## rowval in CSC equiv. to colval in CSR
+    ## rows are now columns so the m x n dimensions after transpose are n x m
+    At = copy(transpose(A))
+    row_end_offsets = At.colptr[2:end]
+
+    nz = nonzeros(At)
+    nrows = size(A, 1)
+    nnz_indices = collect(1:length(nz)) # nzval ordering is diff for diff formats
+    num_merge_items = length(nz) + nrows # preserve the dimensions of the original matrix
 
     num_threads = nthreads()
     items_per_thread = (num_merge_items + num_threads - 1) ÷ num_threads
@@ -67,26 +103,26 @@ function merge_csr_mv!(A::AbstractSparseMatrixCSC, input::StridedVector, output:
         diagonal_end = min(diagonal + items_per_thread, num_merge_items)
 
         # Get starting and ending thread coordinates (row, nnz)
-        thread_coord = merge_path_search(diagonal, nrow, length(nzval), row_end_offsets, nnz_indices)
-        thread_coord_end = merge_path_search(diagonal_end, nrow, length(nzval), row_end_offsets, nnz_indices)
+        thread_coord = merge_path_search(diagonal, nrows, length(nz), row_end_offsets, nnz_indices)
+        thread_coord_end = merge_path_search(diagonal_end, nrows, length(nz), row_end_offsets, nnz_indices)
 
         # Consume merge items, whole rows first
-        running_total = zero(eltype(y)) 
+        running_total = 0.0        
         while thread_coord.x < thread_coord_end.x
             while thread_coord.y < row_end_offsets[thread_coord.x + 1] - 1
-                running_total += op(nzval[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
+                running_total += op(nz[thread_coord.y + 1]) * x[At.rowval[thread_coord.y + 1]]
                 thread_coord.y += 1
             end
 
-            output[thread_coord.x + 1] += running_total
-            running_total = zero(eltype(y)) 
+            y[thread_coord.x + 1] = running_total * β
+            running_total = 0.0
             thread_coord.x += 1 
         end
        
         # May have thread end up partially consuming a row.
         # Save result form partial consumption and do one pass at the end to add it back to y
         while thread_coord.y < thread_coord_end.y
-            running_total += op(nzval[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
+            running_total += op(nz[thread_coord.y + 1]) * x[At.rowval[thread_coord.y + 1]] * β
             thread_coord.y += 1
         end
 
@@ -96,13 +132,9 @@ function merge_csr_mv!(A::AbstractSparseMatrixCSC, input::StridedVector, output:
 
     end
 
-    # Diagonistcs
-    # println("row_carry_out: $row_carry_out")
-    # println("value_carry_out: $value_carry_out")
-    # println("Incomplete y: $y")
     for tid in 1:num_threads
-        if row_carry_out[tid] <= nrow
-            output[row_carry_out[tid]] += value_carry_out[tid]
+        if row_carry_out[tid] <= nrows
+            y[row_carry_out[tid]] += value_carry_out[tid]
         end
     end
 
@@ -117,8 +149,7 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
         size(A, 2) == size(C, 1) || throw(DimensionMismatch())
         size(A, 1) == size(B, 1) || throw(DimensionMismatch())
         size(B, 2) == size(C, 2) || throw(DimensionMismatch())
-        # nzv = nonzeros(A)
-        # rv = rowvals(A)
+        # move multipication by beta into the multithreaded part
         if β != 1
             β != 0 ? rmul!(C, β) : fill!(C, zero(eltype(C)))
         end
@@ -127,10 +158,13 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
             merge_csr_mv!(A, B[:,k], c, $t)
         end
         C
+        # end of @eval macro
     end
+    # end of for loop
 end
 
-
+#=
+# Throws error about @atomic behavior
 function atomic_add(a::AbstractVector{T},b::T) where T <: Real
     @atomic a[1] += b
 end
@@ -166,6 +200,7 @@ function SparseArrays.mul!(C::StridedVecOrMat, A::AbstractSparseMatrixCSC, B::De
     end
     C
 end
+=#
 
-
+# end of the module
 end
