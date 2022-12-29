@@ -7,6 +7,8 @@ using LinearAlgebra: Adjoint,adjoint,Transpose,transpose
 
 using Base.Threads
 
+using Atomix
+
 mutable struct Coordinate
     x::Int
     y::Int
@@ -73,7 +75,7 @@ we do it just so the INTERNAL representation of the matrix looks like a CSR
 # 2. add update tests to work with CSC matrices. you can use sprand(...) to generate some matrix
 # StridedVector is too restrictive, not even sure how you end up with a StridedVector in the first place 
 # Axβ = y
-function merge_csr_mv!(A::SparseMatrixCSC, x, β::Number, y, op)
+function merge_csr_mv!(A::SparseMatrixCSC, input, β::Number, output, op)
 
     # transpose the CSC to CSR
     ## colptr in CSC equiv. to rowptr in CSR
@@ -107,11 +109,11 @@ function merge_csr_mv!(A::SparseMatrixCSC, x, β::Number, y, op)
         running_total = 0.0        
         while thread_coord.x < thread_coord_end.x
             while thread_coord.y < row_end_offsets[thread_coord.x + 1] - 1
-                @inbounds running_total += op(nz[thread_coord.y + 1]) * x[At.rowval[thread_coord.y + 1]]
+                @inbounds running_total += op(nz[thread_coord.y + 1]) * input[At.rowval[thread_coord.y + 1]]
                 thread_coord.y += 1
             end
 
-            @inbounds y[thread_coord.x + 1] = running_total * β
+            @inbounds output[thread_coord.x + 1] = running_total * β
             running_total = 0.0
             thread_coord.x += 1 
         end
@@ -119,7 +121,7 @@ function merge_csr_mv!(A::SparseMatrixCSC, x, β::Number, y, op)
         # May have thread end up partially consuming a row.
         # Save result form partial consumption and do one pass at the end to add it back to y
         while thread_coord.y < thread_coord_end.y
-            @inbounds running_total += op(nz[thread_coord.y + 1]) * x[At.rowval[thread_coord.y + 1]] * β
+            @inbounds running_total += op(nz[thread_coord.y + 1]) * input[At.rowval[thread_coord.y + 1]] * β
             thread_coord.y += 1
         end
 
@@ -131,48 +133,62 @@ function merge_csr_mv!(A::SparseMatrixCSC, x, β::Number, y, op)
 
     for tid in 1:num_threads
         @inbounds if row_carry_out[tid] <= nrows
-            @inbounds y[row_carry_out[tid]] += value_carry_out[tid]
+            @inbounds output[row_carry_out[tid]] += value_carry_out[tid]
         end
     end
 
 end
 
 
-# y => C[:,k]
-# x => B[:,k]
+# C = adjoint(A)Bα + Cβ
+# C = transpose(A)B + Cβ
+# C = xABα + Cβ
 for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
     @eval function SparseArrays.mul!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSC}, B::DenseInputVecOrMat, α::Number, β::Number)
+        # obtains the original matrix underneath the "lazy wrapper"
         A = xA.parent
         size(A, 2) == size(C, 1) || throw(DimensionMismatch())
         size(A, 1) == size(B, 1) || throw(DimensionMismatch())
         size(B, 2) == size(C, 2) || throw(DimensionMismatch())
-        # move multipication by beta into the multithreaded part
-        if β != 1
-            β != 0 ? rmul!(C, β) : fill!(C, zero(eltype(C)))
+        # move multiplication by beta into the multithreaded part
+        ABα = similar(C)
+        for (row_idx, col) in enumerate(eachcol(B))
+            # merge_csr_mv!(A, x, β, y, op)
+            merge_csr_mv!(A, col, α, ABα[row_idx, :], $t)
         end
-        for (k,c) in enumerate(eachcol(C))
-            # parallel implementation goes here acting on slice C[:,k], B[:,k]
-            merge_csr_mv!(A, B[:,k], c, $t)
-        end
+        C = ABα + C*β
         C
         # end of @eval macro
     end
     # end of for loop
 end
 
-#=
+
 # Throws error about @atomic behavior
-function atomic_add(a::AbstractVector{T},b::T) where T <: Real
-    @atomic a[1] += b
+## Probably meant to add b to every element of a while mutating a?
+## function names should be suffixed w/ exclamation mark
+function atomic_add!(a::AbstractVector{T},b::T) where T <: Real
+    # There's an atomic_add! in Threads but has signature (x::Atomic{T}, val::T) where T <: ArithmeticTypes
+    # you'd have to wrap each
+    # Objective: for each element in AbstractVector, atomically add b to the element
+    # Can also use Atomix.jl
+    for idx in 1:length(a)
+        Atomix.@atomic a[idx] += b
+    end
+    
 end
 
-function atomic_add(a::AbstractVector{T},b::T) where T <: Complex
-    view_a = reinterpret(real(T),a)
+function atomic_add!(a::AbstractVector{T},b::T) where T <: Complex
+    # return type representing real part
+    view_a = reinterpret(reshape, real(T),a)
     real_b = real(b)
     imag_b = imag(b)
 
-    @atomic view_a[1] += real_b
-    @atomic view_a[2] += imag_b
+    # mutating the view also mutates the underlying array it came from
+    for idx in 1:size(view_a, 2)
+        Atomix.@atomic view_a[1, idx] += real_b
+        Atomix.@atomic view_a[2, idx] += imag_b
+    end
 end
 
 function SparseArrays.mul!(C::StridedVecOrMat, A::AbstractSparseMatrixCSC, B::DenseInputVecOrMat, α::Number, β::Number)
@@ -191,13 +207,12 @@ function SparseArrays.mul!(C::StridedVecOrMat, A::AbstractSparseMatrixCSC, B::De
                 @inbounds val = nzv[j]*αxj
                 @inbounds row = rv[j]
                 @inbounds out = C[row:row, k] # pass element as view
-                atomic_add(out,val) 
+                atomic_add!(out,val) 
             end
         end
     end
     C
 end
-=#
 
 # end of the module
 end
