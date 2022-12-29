@@ -41,10 +41,6 @@ function merge_path_search(diagonal::Int, a_len::Int, b_len::Int, a, b)
 
 end
 
-# Ax = y
-# A matrix
-# x, y vectors
-
 #=
 Algorithm originally designed for CSR now needs to work for CSC
 
@@ -87,8 +83,9 @@ function merge_csr_mv!(A::SparseMatrixCSC, x, β::Number, y, op)
     row_end_offsets = At.colptr[2:end]
 
     nz = nonzeros(At)
+    nnz = length(nz) 
     nrows = size(A, 1)
-    nnz_indices = collect(1:length(nz)) # nzval ordering is diff for diff formats
+    nz_indices = collect(1:length(nz)) # nzval ordering is diff for diff formats
     num_merge_items = length(nz) + nrows # preserve the dimensions of the original matrix
 
     num_threads = nthreads()
@@ -102,19 +99,19 @@ function merge_csr_mv!(A::SparseMatrixCSC, x, β::Number, y, op)
         diagonal = min(items_per_thread * (tid - 1), num_merge_items)
         diagonal_end = min(diagonal + items_per_thread, num_merge_items)
 
-        # Get starting and ending thread coordinates (row, nnz)
-        thread_coord = merge_path_search(diagonal, nrows, length(nz), row_end_offsets, nnz_indices)
-        thread_coord_end = merge_path_search(diagonal_end, nrows, length(nz), row_end_offsets, nnz_indices)
+        # Get starting and ending thread coordinates (row, nz)
+        thread_coord = merge_path_search(diagonal, nrows, nnz, row_end_offsets, nz_indices)
+        thread_coord_end = merge_path_search(diagonal_end, nrows, nnz, row_end_offsets, nz_indices)
 
         # Consume merge items, whole rows first
         running_total = 0.0        
         while thread_coord.x < thread_coord_end.x
             while thread_coord.y < row_end_offsets[thread_coord.x + 1] - 1
-                running_total += op(nz[thread_coord.y + 1]) * x[At.rowval[thread_coord.y + 1]]
+                @inbounds running_total += op(nz[thread_coord.y + 1]) * x[At.rowval[thread_coord.y + 1]]
                 thread_coord.y += 1
             end
 
-            y[thread_coord.x + 1] = running_total * β
+            @inbounds y[thread_coord.x + 1] = running_total * β
             running_total = 0.0
             thread_coord.x += 1 
         end
@@ -122,7 +119,7 @@ function merge_csr_mv!(A::SparseMatrixCSC, x, β::Number, y, op)
         # May have thread end up partially consuming a row.
         # Save result form partial consumption and do one pass at the end to add it back to y
         while thread_coord.y < thread_coord_end.y
-            running_total += op(nz[thread_coord.y + 1]) * x[At.rowval[thread_coord.y + 1]] * β
+            @inbounds running_total += op(nz[thread_coord.y + 1]) * x[At.rowval[thread_coord.y + 1]] * β
             thread_coord.y += 1
         end
 
@@ -133,8 +130,8 @@ function merge_csr_mv!(A::SparseMatrixCSC, x, β::Number, y, op)
     end
 
     for tid in 1:num_threads
-        if row_carry_out[tid] <= nrows
-            y[row_carry_out[tid]] += value_carry_out[tid]
+        @inbounds if row_carry_out[tid] <= nrows
+            @inbounds y[row_carry_out[tid]] += value_carry_out[tid]
         end
     end
 
