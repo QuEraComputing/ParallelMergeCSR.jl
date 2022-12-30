@@ -97,3 +97,27 @@ end
 
     @test Matrix(A) * x * 3 ≈ y
 end
+
+@testset "Matrix x Matrix" begin
+
+    ## Calculate AXα
+    # Create Matrices
+    A = SparseArrays.sparse(rand(1:10, 3, 2))
+    X = rand(1:10, 2, 4)
+
+    # set alpha to 1.0 for now
+    α = 1.0
+
+    # Create place to store solution
+    Y = zeros(3, 4)
+
+    # iterate
+    for (idx, col) in enumerate(eachcol(X))
+        # merge_csr_mv!(A, x, β, y, op)
+        Y_view = @view Y[:, idx]
+        ParallelMergeCSR.merge_csr_mv!(A, col, α, Y_view, x -> x)
+    end
+
+    @test Matrix(A) * X == Y 
+
+end
