@@ -157,12 +157,14 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
             β != 0 ? SparseArrays.rmul!(C, β) : fill!(C, zero(eltype(C)))
         end
         # move multiplication by alpha into the multithreaded part
-        ABα = zeros(C)
-        for (row_idx, col) in enumerate(eachcol(B))
+        ABα = zeros(size(C))
+        for (col_idx, col) in enumerate(eachcol(B))
             # merge_csr_mv!(A, x, β, y, op)
-            merge_csr_mv!(A, col, α, ABα[row_idx, :], $t)
+            ABα_view = @view ABα[:, col_idx]
+            merge_csr_mv!(A, col, α, ABα_view, $t)
         end
-        C = ABα + C*β
+        # doesn't seem to mutate properly
+        C += ABα
         C
         # end of @eval macro
     end
