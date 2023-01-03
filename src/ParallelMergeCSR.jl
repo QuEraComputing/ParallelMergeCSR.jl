@@ -164,7 +164,7 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
             merge_csr_mv!(A, col, α, ABα_view, $t)
         end
         # doesn't seem to mutate properly
-        C += ABα
+        C[:,:] += ABα
         C
         # end of @eval macro
     end
