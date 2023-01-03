@@ -20,14 +20,31 @@ using SparseArrays
 end
 
 # trigger merge_csr_mv!
-@testset "Transpose" begin
+@testset "Transpose Square" begin
 
     # C = transpose(A)Bα + Cβ
-    A = transpose(sprand(4, 4, 0.3))
-    B = rand(1:10, (4,4))
+    A = transpose(sparse(rand(1:5, 4, 4)))
+    B = rand(1:5, (4,4))
     α = 1.0
 
-    C = zeros(Float64, 4, 4)
+    C = zeros(4, 4)
+    C_copy = deepcopy(C)
+    β = 1.0
+
+    SparseArrays.mul!(C, A, B, α, β)
+
+    # right hand side is correct, left hand side is problematic
+    @test C ≈ Matrix(A) * B * α + C_copy * β
+end
+
+@testset "Transpose Rectangular" begin
+
+    A = sparse([1 2 3 4; 5 6 7 8]) |> transpose
+    B = [1 2 3; 4 5 6]
+
+    α = 1.0
+
+    C = zeros(4, 3)
     C_copy = deepcopy(C)
     β = 1.0
 
