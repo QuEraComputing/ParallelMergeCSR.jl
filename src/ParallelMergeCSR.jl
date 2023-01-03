@@ -2,7 +2,11 @@ module ParallelMergeCSR
 
 using SparseArrays
 using SparseArrays: AbstractSparseMatrixCSC,
-                    DenseInputVecOrMat
+                    DenseInputVecOrMat,
+                    getcolptr,
+                    getrowval,
+                    getnzval
+
 using LinearAlgebra: Adjoint,adjoint,Transpose,transpose
 
 using Base.Threads
@@ -75,53 +79,59 @@ we do it just so the INTERNAL representation of the matrix looks like a CSR
 # 2. add update tests to work with CSC matrices. you can use sprand(...) to generate some matrix
 # StridedVector is too restrictive, not even sure how you end up with a StridedVector in the first place 
 # Axβ = y
-function merge_csr_mv!(A::SparseMatrixCSC, input, β::Number, output, op)
+function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input, output, op)
 
     # transpose the CSC to CSR
     ## colptr in CSC equiv. to rowptr in CSR
     ## rowval in CSC equiv. to colval in CSR
     ## rows are now columns so the m x n dimensions after transpose are n x m
-    At = copy(transpose(A))
-    row_end_offsets = At.colptr[2:end]
 
-    nz = nonzeros(At)
-    nnz = length(nz) 
-    nrows = size(A, 1)
-    nz_indices = collect(1:length(nz)) # nzval ordering is diff for diff formats
-    num_merge_items = length(nz) + nrows # preserve the dimensions of the original matrix
+    # At = copy(transpose(A))
+    # row_end_offsets = At.colptr[2:end]
+
+    nzv = getnzval(A)
+    rv = getrowval(A)
+    cp = getcolptr(A)
+
+    nnz = length(nzv) 
+    nrows = length(cp) - 1
+
+    nz_indices = rv
+    row_end_offsets = cp[2:end] # nzval ordering is diff for diff formats
+    num_merge_items = length(nzv) + nrows # preserve the dimensions of the original matrix
 
     num_threads = nthreads()
     items_per_thread = (num_merge_items + num_threads - 1) ÷ num_threads
 
-    row_carry_out = zeros(Int, num_threads)
-    value_carry_out = zeros(Float64, num_threads)
+    row_carry_out = zeros(eltype(cp), num_threads)
+    value_carry_out = zeros(eltype(output), num_threads) # value must match output
 
     # Julia threads start id by 1, so make sure to offset!
     @threads for tid in 1:num_threads
         diagonal = min(items_per_thread * (tid - 1), num_merge_items)
         diagonal_end = min(diagonal + items_per_thread, num_merge_items)
 
-        # Get starting and ending thread coordinates (row, nz)
+        # Get starting and ending thread coordinates (row, nzv)
         thread_coord = merge_path_search(diagonal, nrows, nnz, row_end_offsets, nz_indices)
         thread_coord_end = merge_path_search(diagonal_end, nrows, nnz, row_end_offsets, nz_indices)
 
         # Consume merge items, whole rows first
-        running_total = 0.0        
+        running_total = 0       
         while thread_coord.x < thread_coord_end.x
             while thread_coord.y < row_end_offsets[thread_coord.x + 1] - 1
-                @inbounds running_total += op(nz[thread_coord.y + 1]) * input[At.rowval[thread_coord.y + 1]]
+                @inbounds running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
                 thread_coord.y += 1
             end
 
-            @inbounds output[thread_coord.x + 1] = running_total * β
-            running_total = 0.0
+            @inbounds output[thread_coord.x + 1] += α * running_total
+            running_total = 0
             thread_coord.x += 1 
         end
        
         # May have thread end up partially consuming a row.
         # Save result form partial consumption and do one pass at the end to add it back to y
         while thread_coord.y < thread_coord_end.y
-            @inbounds running_total += op(nz[thread_coord.y + 1]) * input[At.rowval[thread_coord.y + 1]] * β
+            @inbounds running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]] 
             thread_coord.y += 1
         end
 
@@ -133,7 +143,7 @@ function merge_csr_mv!(A::SparseMatrixCSC, input, β::Number, output, op)
 
     for tid in 1:num_threads
         @inbounds if row_carry_out[tid] <= nrows
-            @inbounds output[row_carry_out[tid]] += value_carry_out[tid]
+            @inbounds output[row_carry_out[tid]] += α * value_carry_out[tid]
         end
     end
 
@@ -157,14 +167,11 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
             β != 0 ? SparseArrays.rmul!(C, β) : fill!(C, zero(eltype(C)))
         end
         # move multiplication by alpha into the multithreaded part
-        ABα = zeros(size(C))
-        for (col_idx, col) in enumerate(eachcol(B))
+        for (col_idx, input) in enumerate(eachcol(B))
             # merge_csr_mv!(A, x, β, y, op)
-            ABα_view = @view ABα[:, col_idx]
-            merge_csr_mv!(A, col, α, ABα_view, $t)
+            output = @view C[:, col_idx]
+            merge_csr_mv!(α, A, input, output, $t)
         end
-        # doesn't seem to mutate properly
-        C[:,:] += ABα
         C
         # end of @eval macro
     end
