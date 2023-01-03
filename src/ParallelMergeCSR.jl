@@ -79,7 +79,7 @@ we do it just so the INTERNAL representation of the matrix looks like a CSR
 # 2. add update tests to work with CSC matrices. you can use sprand(...) to generate some matrix
 # StridedVector is too restrictive, not even sure how you end up with a StridedVector in the first place 
 # Axβ = y
-function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input, output, op)
+function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input::StridedVector, output::StridedVector, op)
 
     # transpose the CSC to CSR
     ## colptr in CSC equiv. to rowptr in CSR
@@ -118,7 +118,7 @@ function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input, output, op)
         thread_coord_end = merge_path_search(diagonal_end, nrows, nnz, row_end_offsets, nz_indices)
 
         # Consume merge items, whole rows first
-        running_total = 0       
+        running_total = zero(eltype(output))
         while thread_coord.x < thread_coord_end.x
             while thread_coord.y < row_end_offsets[thread_coord.x + 1] - 1
                 @inbounds running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
@@ -126,7 +126,7 @@ function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input, output, op)
             end
 
             @inbounds output[thread_coord.x + 1] += α * running_total
-            running_total = 0
+            running_total = zero(eltype(output))
             thread_coord.x += 1 
         end
        
