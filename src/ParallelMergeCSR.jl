@@ -94,7 +94,9 @@ function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input, output, op)
     cp = getcolptr(A)
 
     nnz = length(nzv) 
-    nrows = length(cp) - 1
+    
+    # nrows = length(cp) - 1 can give the wrong number of rows!
+    nrows = A.m
 
     nz_indices = rv
     row_end_offsets = cp[2:end] # nzval ordering is diff for diff formats

@@ -18,49 +18,58 @@ using SparseArrays
 
         y = zeros(size(A, 1))
 
-        ParallelMergeCSR.merge_csr_mv!(1.0, A, x, y, transpose)
+        ParallelMergeCSR.merge_csr_mv!(0.3, A, x, y, transpose)
 
-        @test Matrix(A) * x == y
+        @test Matrix(A) * x * 0.3 == y
     end
 
     @testset "Single row" begin
 
+        # 10 x 1 converted to 1 x 10
         A = SparseArrays.sprand(10, 1, 0.3)
+        A_transpose = copy(transpose(A))
 
-        x = rand(1:10, 1)
+        # x needs to be 10 x 1 
+        x = rand(size(A, 1))
 
-        y = zeros(size(A, 1))
+        y = zeros(eltype(x), 1)
 
-        ParallelMergeCSR.merge_csr_mv!(1.0, A, x, y, adjoint)
+        ParallelMergeCSR.merge_csr_mv!(1.1, A_transpose, x, y, transpose)
 
-        @test Matrix(A) * x ≈ y
+        @test (transpose(Matrix(A)) * x) * 1.1 ≈ y
     end
 
     @testset "Single column" begin
 
-        A = SparseArrays.sprand(10, 1, 0.3)
+        # 1 x 10 is now 10 x 1
+        A = SparseArrays.sprand(1, 10, 0.3)
+        A_adjoint = copy(adjoint(A))
 
-        x = rand(1:10, 1)
+        # needs to be 1 x 1
+        x = rand()
 
-        y = zeros(size(A, 1))
+        # 10 x 1
+        y = zeros(size(A_adjoint))
 
-        ParallelMergeCSR.merge_csr_mv!(1.0, A, x, y, transpose)
+        ParallelMergeCSR.merge_csr_mv!(0.7, A_adjoint, x, y, adjoint)
 
-        @test Matrix(A) * x ≈ y
+        @test adjoint(Matrix(A)) * x * 0.7 ≈ y
     end
 end
 
 @testset "Square" begin
     # 10 x 10 with 30% chance of entry being made
     A = SparseArrays.sprand(10,10,0.3)
+    A_adjoint = copy(adjoint(A))
 
+    # 10 x 1
     x = rand(10)
 
-    y = zeros(size(A, 1))
+    y = zeros(size(x))
 
-    ParallelMergeCSR.merge_csr_mv!(1.1, A, x, y, adjoint)
+    ParallelMergeCSR.merge_csr_mv!(1.1, A_adjoint, x, y, adjoint)
 
-    @test (Matrix(A) * x) * 1.1 ≈ y
+    @test (adjoint(Matrix(A)) * x) * 1.1 ≈ y
 
 end
 
@@ -71,7 +80,7 @@ end
          0 0 50 60 70 0;
          0 0 0 0 0 80]
 
-    # get into CSR form
+    # get into CSC form
     A = sparse(m)
 
     # create vector
