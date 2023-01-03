@@ -5,10 +5,6 @@ using SparseArrays
 ## NOTE: Sparse matrices are converted to dense form in the @test's
 ##       considering that our redefinition of SparseArrays.mul! seems to
 ##       interfere
-
-## New function signature for merge_csr_mv!, it is now
-## merge_csr_mv!(α, A, input, output, op)
-## so should be A*input*α = output with some op
 @testset "Extreme Cases" begin
 
     @testset "Singleton" begin
@@ -57,6 +53,7 @@ using SparseArrays
     end
 end
 
+# test fails, y seems to have lots of zero-entries
 @testset "Square" begin
     # 10 x 10 with 30% chance of entry being made
     A = SparseArrays.sprand(10,10,0.3)
@@ -64,6 +61,7 @@ end
     # 10 x 1
     x = rand(10)
 
+    # 10 x 1
     y = zeros(size(x))
 
     merge_csr_mv!(1.1, A, x, y, adjoint)
@@ -93,7 +91,7 @@ end
     merge_csr_mv!(2.0, A, x, y, adjoint)
 
 
-    @test transpose(m) * x * 2.0 == y
+    @test Matrix(adjoint(m)) * x * 2.0 == y
 end
 
 @testset "100x100" begin
@@ -101,37 +99,39 @@ end
     A = SparseArrays.sprand(100, 100, 0.3)
 
     # create vector
-    x = rand(1:100, 100, 1)
+    x = rand(100)
 
     # create empty solution
     y = zeros(size(A, 1))
 
-    merge_csr_mv!(3, A, x, y, transpose)
+    merge_csr_mv!(3.0, A, x, y, transpose)
 
-    @test Matrix(A) * x * 3 ≈ y
+    @test transpose(Matrix(A)) * x * 3 ≈ y
 end
 
 @testset "Matrix x Matrix" begin
 
     ## Calculate AXα
     # Create Matrices
-    A = SparseArrays.sparse(rand(1:10, 3, 2))
-    X = rand(1:10, 2, 4)
+    # 3 x 2
+    A = sprand(3, 2, 0.4)
+    # 3 x 4
+    X = rand(3, 4)
 
     # set alpha to 1.0 for now
-    α = 1.0
+    α = 1.0 
 
-    # Create place to store solution
-    Y = zeros(3, 4)
+    # Create place to store solution, 
+    # should be 2 x 4
+    Y = zeros(2, 4)
 
     # iterate
+    # some kind of indexing issue going on here
     for (idx, col) in enumerate(eachcol(X))
-        # merge_csr_mv!(A, x, β, y, op)
         Y_view = @view Y[:, idx]
-        merge_csr_mv!(α, A, col, Y_view, x -> x)
-        # merge_csr_mv!(A, col, α, Y_view, x -> x)
+        merge_csr_mv!(α, A, col, Y_view, transpose)
     end
 
-    @test Matrix(A) * X == Y 
+    @test transpose(Matrix(A)) * X * 1.0 ≈ Y 
 
 end

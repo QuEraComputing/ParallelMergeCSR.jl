@@ -84,9 +84,6 @@ function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input::StridedVect
     ## rowval in CSC equiv. to colval in CSR
     ## rows are now columns so the m x n dimensions after transpose are n x m
 
-    # At = copy(transpose(A))
-    # row_end_offsets = At.colptr[2:end]
-
     nzv = nonzeros(A)
     rv = rowvals(A)
     cp = getcolptr(A)
@@ -96,9 +93,9 @@ function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input::StridedVect
     # nrows = length(cp) - 1 can give the wrong number of rows!
     nrows = A.n
 
-    nz_indices = rv
+    nz_indices = collect(1:nnz)
     row_end_offsets = cp[2:end] # nzval ordering is diff for diff formats
-    num_merge_items = length(nzv) + nrows # preserve the dimensions of the original matrix
+    num_merge_items = nnz + nrows # preserve the dimensions of the original matrix
 
     num_threads = nthreads()
     items_per_thread = (num_merge_items + num_threads - 1) ÷ num_threads
@@ -119,12 +116,10 @@ function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input::StridedVect
         running_total = zero(eltype(output))
         while thread_coord.x < thread_coord_end.x
             while thread_coord.y < row_end_offsets[thread_coord.x + 1] - 1
-                # @inbounds running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
                 running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
                 thread_coord.y += 1
             end
 
-            # @inbounds output[thread_coord.x + 1] += α * running_total
             output[thread_coord.x + 1] += α * running_total
             running_total = zero(eltype(output))
             thread_coord.x += 1 
@@ -133,7 +128,7 @@ function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input::StridedVect
         # May have thread end up partially consuming a row.
         # Save result form partial consumption and do one pass at the end to add it back to y
         while thread_coord.y < thread_coord_end.y
-            @inbounds running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]] 
+            running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
             thread_coord.y += 1
         end
 
