@@ -94,7 +94,7 @@ function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input::StridedVect
     nnz = length(nzv) 
     
     # nrows = length(cp) - 1 can give the wrong number of rows!
-    nrows = A.m
+    nrows = A.n
 
     nz_indices = rv
     row_end_offsets = cp[2:end] # nzval ordering is diff for diff formats
@@ -119,11 +119,13 @@ function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input::StridedVect
         running_total = zero(eltype(output))
         while thread_coord.x < thread_coord_end.x
             while thread_coord.y < row_end_offsets[thread_coord.x + 1] - 1
-                @inbounds running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
+                # @inbounds running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
+                running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
                 thread_coord.y += 1
             end
 
-            @inbounds output[thread_coord.x + 1] += α * running_total
+            # @inbounds output[thread_coord.x + 1] += α * running_total
+            output[thread_coord.x + 1] += α * running_total
             running_total = zero(eltype(output))
             thread_coord.x += 1 
         end
@@ -154,7 +156,7 @@ end
 # C = transpose(A)B + Cβ
 # C = xABα + Cβ
 for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
-    @eval function SparseArrays.mul!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSC}, B::DenseInputVecOrMat, α::Number, β::Number)
+    @eval function mul!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSC}, B::DenseInputVecOrMat, α::Number, β::Number)
         # obtains the original matrix underneath the "lazy wrapper"
         A = xA.parent
         size(A, 2) == size(C, 1) || throw(DimensionMismatch())
@@ -204,7 +206,7 @@ function atomic_add!(a::AbstractVector{T},b::T) where T <: Complex
     end
 end
 
-function SparseArrays.mul!(C::StridedVecOrMat, A::AbstractSparseMatrixCSC, B::DenseInputVecOrMat, α::Number, β::Number)
+function mul!(C::StridedVecOrMat, A::AbstractSparseMatrixCSC, B::DenseInputVecOrMat, α::Number, β::Number)
     size(A, 2) == size(B, 1) || throw(DimensionMismatch())
     size(A, 1) == size(C, 1) || throw(DimensionMismatch())
     size(B, 2) == size(C, 2) || throw(DimensionMismatch())
