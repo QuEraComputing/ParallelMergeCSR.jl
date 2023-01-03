@@ -3,9 +3,7 @@ module ParallelMergeCSR
 using SparseArrays
 using SparseArrays: AbstractSparseMatrixCSC,
                     DenseInputVecOrMat,
-                    getcolptr,
-                    getrowval,
-                    getnzval
+                    getcolptr
 
 using LinearAlgebra: Adjoint,adjoint,Transpose,transpose
 
@@ -89,8 +87,8 @@ function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input::StridedVect
     # At = copy(transpose(A))
     # row_end_offsets = At.colptr[2:end]
 
-    nzv = getnzval(A)
-    rv = getrowval(A)
+    nzv = nonzeros(A)
+    rv = rowvals(A)
     cp = getcolptr(A)
 
     nnz = length(nzv) 
