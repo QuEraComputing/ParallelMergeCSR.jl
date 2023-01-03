@@ -6,6 +6,9 @@ using SparseArrays
 ##       considering that our redefinition of SparseArrays.mul! seems to
 ##       interfere
 
+## New function signature for merge_csr_mv!, it is now
+## merge_csr_mv!(α, A, input, output, op)
+## so should be A*input*α = output with some op
 @testset "Extreme Cases" begin
 
     @testset "Singleton" begin
@@ -15,7 +18,7 @@ using SparseArrays
 
         y = zeros(size(A, 1))
 
-        ParallelMergeCSR.merge_csr_mv!(A, x, 1.0, y, transpose)
+        ParallelMergeCSR.merge_csr_mv!(1.0, A, x, y, transpose)
 
         @test Matrix(A) * x == y
     end
@@ -28,7 +31,7 @@ using SparseArrays
 
         y = zeros(size(A, 1))
 
-        ParallelMergeCSR.merge_csr_mv!(A, x, 1.0, y, adjoint)
+        ParallelMergeCSR.merge_csr_mv!(1.0, A, x, y, adjoint)
 
         @test Matrix(A) * x ≈ y
     end
@@ -41,7 +44,7 @@ using SparseArrays
 
         y = zeros(size(A, 1))
 
-        ParallelMergeCSR.merge_csr_mv!(A, x, 1.0, y, transpose)
+        ParallelMergeCSR.merge_csr_mv!(1.0, A, x, y, transpose)
 
         @test Matrix(A) * x ≈ y
     end
@@ -55,7 +58,7 @@ end
 
     y = zeros(size(A, 1))
 
-    ParallelMergeCSR.merge_csr_mv!(A, x, 1.1, y, adjoint)
+    ParallelMergeCSR.merge_csr_mv!(1.1, A, x, y, adjoint)
 
     @test (Matrix(A) * x) * 1.1 ≈ y
 
@@ -78,7 +81,8 @@ end
     y = zeros(Int64, size(A, 1))
     
     # multiply
-    ParallelMergeCSR.merge_csr_mv!(A, x, 2.0, y, adjoint)
+    ParallelMergeCSR.merge_csr_mv!(2.0, A, x, y, adjoint)
+
 
     @test m * x * 2.0 == y
 end
@@ -93,7 +97,7 @@ end
     # create empty solution
     y = zeros(size(A, 1))
 
-    ParallelMergeCSR.merge_csr_mv!(A, x, 3, y, transpose)
+    ParallelMergeCSR.merge_csr_mv!(3, A, x, y, transpose)
 
     @test Matrix(A) * x * 3 ≈ y
 end
@@ -115,7 +119,8 @@ end
     for (idx, col) in enumerate(eachcol(X))
         # merge_csr_mv!(A, x, β, y, op)
         Y_view = @view Y[:, idx]
-        ParallelMergeCSR.merge_csr_mv!(A, col, α, Y_view, x -> x)
+        ParallelMergeCSR.merge_csr_mv!(α, A, col, Y_view, x -> x)
+        # ParallelMergeCSR.merge_csr_mv!(A, col, α, Y_view, x -> x)
     end
 
     @test Matrix(A) * X == Y 
