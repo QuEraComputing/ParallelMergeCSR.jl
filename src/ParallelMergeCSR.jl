@@ -115,12 +115,12 @@ function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input::StridedVect
         # Consume merge items, whole rows first
         running_total = zero(eltype(output))
         while thread_coord.x < thread_coord_end.x
-            while thread_coord.y < row_end_offsets[thread_coord.x + 1] - 1
-                running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
+            @inbounds while thread_coord.y < row_end_offsets[thread_coord.x + 1] - 1
+                @inbounds running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
                 thread_coord.y += 1
             end
 
-            output[thread_coord.x + 1] += α * running_total
+            @inbounds output[thread_coord.x + 1] += α * running_total
             running_total = zero(eltype(output))
             thread_coord.x += 1 
         end
@@ -128,13 +128,13 @@ function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input::StridedVect
         # May have thread end up partially consuming a row.
         # Save result form partial consumption and do one pass at the end to add it back to y
         while thread_coord.y < thread_coord_end.y
-            running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
+            @inbounds running_total += op(nzv[thread_coord.y + 1]) * input[rv[thread_coord.y + 1]]
             thread_coord.y += 1
         end
 
         # Save carry-outs
-        row_carry_out[tid] = thread_coord_end.x + 1
-        value_carry_out[tid] = running_total
+        @inbounds row_carry_out[tid] = thread_coord_end.x + 1
+        @inbounds value_carry_out[tid] = running_total
 
     end
 
