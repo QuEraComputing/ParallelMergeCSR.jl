@@ -16,6 +16,8 @@ jobs:
 
   # taken from example on julia-actions/runtest@v1
   test:
+    needs: pre_job
+    if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
     strategy:
       matrix:
         julia-num-threads: [1,2,4,8]
