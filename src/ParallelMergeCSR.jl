@@ -45,44 +45,9 @@ function merge_path_search(diagonal::Int, a_len::Int, b_len::Int, a, b)
 
 end
 
-#=
-Algorithm originally designed for CSR now needs to work for CSC
-
-CSC has fields:
-* m - number of rows
-* n - number of columns
-* colptr::Vector - column j is in colptr[j]:(colptr[j+1]-1)
-* rowval::Vector - row indices of stored values
-* nzval::Vector  - stored values, typically nonzeros
-
-CSR used to have fields: 
-* m - number of rows
-* n - number of columns
-* rowptr::Vector - row i is in rowptr[i]:(rowptr[i+1]-1)
-* colval::Vector - col indices of stored values
-* nzval::Vector - Stored values, typically non-zeros
-
-Given a matrix A in CSC, if you do transpose(A), indexing
-individual elements is fine but it's a lazy transpose.
-To materialize the changes, probably requires you perform some copy operation
-e.g. can see changes via dump(copy(transpose(m))) where m isa AbstractMatrixCSC
-
-* NOTE: we don't want the transpose to actually change the matrix dimensions,
-we do it just so the INTERNAL representation of the matrix looks like a CSR
-=#
-
-
-# TODO: 
-# 1. add @inbounds to remove bounds check
-# 2. add update tests to work with CSC matrices. you can use sprand(...) to generate some matrix
-# StridedVector is too restrictive, not even sure how you end up with a StridedVector in the first place 
-# Axβ = y
+# Internally treats the matrix as if its been transposed/is an adjoint
+# e.g. if you pass in a 2x3, internally it's a 3x2 and can be an adjoint if you pass in `adjoint` as the op
 function merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input::StridedVector, output::StridedVector, op)
-
-    # transpose the CSC to CSR
-    ## colptr in CSC equiv. to rowptr in CSR
-    ## rowval in CSC equiv. to colval in CSR
-    ## rows are now columns so the m x n dimensions after transpose are n x m
 
     nzv = nonzeros(A)
     rv = rowvals(A)
@@ -151,21 +116,17 @@ end
 # C = transpose(A)B + Cβ
 # C = xABα + Cβ
 for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
-    @eval function mul!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSC}, B::DenseInputVecOrMat, α::Number, β::Number)
+    @eval function SparseArrays.mul!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSC}, B::DenseInputVecOrMat, α::Number, β::Number)
         # obtains the original matrix underneath the "lazy wrapper"
         A = xA.parent
         size(A, 2) == size(C, 1) || throw(DimensionMismatch())
         size(A, 1) == size(B, 1) || throw(DimensionMismatch())
         size(B, 2) == size(C, 2) || throw(DimensionMismatch())
         if β != 1
-            # assume the rmul! intended to come from SparseArrays
-            ## (could implement a threaded version of that as well, maybe piggyback off of impl branch)
             # preemptively handle β so we just handle C = ABα + C
             β != 0 ? SparseArrays.rmul!(C, β) : fill!(C, zero(eltype(C)))
         end
-        # move multiplication by alpha into the multithreaded part
         for (col_idx, input) in enumerate(eachcol(B))
-            # merge_csr_mv!(A, x, β, y, op)
             output = @view C[:, col_idx]
             merge_csr_mv!(α, A, input, output, $t)
         end
@@ -201,25 +162,20 @@ function atomic_add!(a::AbstractVector{T},b::T) where T <: Complex
     end
 end
 
-function mul!(C::StridedVecOrMat, A::AbstractSparseMatrixCSC, B::DenseInputVecOrMat, α::Number, β::Number)
+function SparseArrays.mul!(C::StridedVecOrMat, A::AbstractSparseMatrixCSC, B::DenseInputVecOrMat, α::Number, β::Number)
     size(A, 2) == size(B, 1) || throw(DimensionMismatch())
     size(A, 1) == size(C, 1) || throw(DimensionMismatch())
     size(B, 2) == size(C, 2) || throw(DimensionMismatch())
     nzv = nonzeros(A)
     rv = rowvals(A)
     if β != 1
-        # assume the rmul! intended to come from SparseArrays
-        ## (could implement a threaded version of that as well, maybe piggyback off of impl branch)
         # preemptively handle β so we just handle C = ABα + C
         β != 0 ? SparseArrays.rmul!(C, β) : fill!(C, zero(eltype(C)))
     end
-    # iterate over the columns of C
     for k in 1:size(C, 2)
-        # iterate over columns of A
         @threads for col in 1:size(A, 2)
-            # multiply each element of B times alpha (single value)
             @inbounds αxj = B[col,k] * α
-            for j in nzrange(A, col) # range of indices in nzv of A restricted to column
+            for j in nzrange(A, col)
                 @inbounds val = nzv[j]*αxj
                 @inbounds row = rv[j]
                 @inbounds out = @view C[row:row, k]
