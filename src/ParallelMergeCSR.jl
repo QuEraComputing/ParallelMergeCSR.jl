@@ -1,15 +1,12 @@
 module ParallelMergeCSR
 
+using Atomix
+using Base.Threads
 using SparseArrays
+using LinearAlgebra: Adjoint,adjoint,Transpose,transpose
 using SparseArrays: AbstractSparseMatrixCSC,
                     DenseInputVecOrMat,
                     getcolptr
-
-using LinearAlgebra: Adjoint,adjoint,Transpose,transpose
-
-using Base.Threads
-
-using Atomix
 
 mutable struct Coordinate
     x::Int
