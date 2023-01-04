@@ -16,12 +16,17 @@ jobs:
 
   # taken from example on julia-actions/runtest@v1
   test:
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        julia-version: ['1','1.6']
+        julia-num-threads: [1,2,4,8]
+        julia-version: ['1.8']
         julia-arch: [x64]
         os: [ubuntu-latest]
+    #1, 2, 4, 8 thread test
+    name: Threads - ${{matrix.julia-num-threads}}
+    env:
+      JULIA_NUM_THREADS: ${{ matrix.julia-num-threads }}
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v2
@@ -29,6 +34,8 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
+      - name: "Confirm Number of Threads"
+        run: julia -e 'println(Threads.nthreads())'
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
         with:
