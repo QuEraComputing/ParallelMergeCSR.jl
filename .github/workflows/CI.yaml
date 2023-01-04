@@ -13,6 +13,8 @@ jobs:
     steps:
       - id: skip_check
         uses: fkirc/skip-duplicate-actions@master
+        with:
+          paths_ignore: '["**/README.md"]'
 
   # taken from example on julia-actions/runtest@v1
   test:
