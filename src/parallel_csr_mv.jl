@@ -30,12 +30,12 @@ end
 # 
 # a -> row-end offsets so really pass in a[2:end]
 # b -> "natural" numbers
-function merge_path_search(diagonal::Int, a_len::Int, b_len::Int, a, b)
+function merge_path_search(diagonal::Int, a_len::Int, b_len::Int, a::AbstractVector, b::AbstractVector)
     # Diagonal search range (in x coordinate space)
     x_min = max(diagonal - b_len, 0)
     x_max = min(diagonal, a_len)
     # 2D binary-search along diagonal search range
-    while (x_min < x_max)
+    @inbounds while (x_min < x_max)
         pivot = (x_min + x_max) >> 1
         if (a[pivot + 1] <= b[diagonal - pivot])
             x_min = pivot + 1
