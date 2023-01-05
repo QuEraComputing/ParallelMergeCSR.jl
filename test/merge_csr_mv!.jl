@@ -1,6 +1,6 @@
 using Test
 using ParallelMergeCSR: merge_csr_mv!, Range
-using SparseArrays
+using SparseArrays: sprand, sparse
 
 
 @testset "Range" begin
@@ -32,7 +32,7 @@ end
 
         merge_csr_mv!(0.3, A, x, y, transpose)
 
-        @test Matrix(A) * x * 0.3 == y
+        @test A * x * 0.3 == y
     end
 
     @testset "Singleton (Complex)" begin
@@ -50,7 +50,7 @@ end
     @testset "Single row (Real)" begin
 
         # 10 x 1 converted to 1 x 10
-        A = 10.0 * SparseArrays.sprand(10, 1, 0.3)
+        A = 10.0 * sprand(10, 1, 0.3)
 
         # x needs to be 10 x 1 
         x = rand(size(A, 1))
@@ -59,13 +59,13 @@ end
 
         merge_csr_mv!(1.1, A, x, y, transpose)
 
-        @test (transpose(Matrix(A)) * x) * 1.1 ≈ y
+        @test (transpose(A) * x) * 1.1 ≈ y
     end
 
     @testset "Single row (Complex)" begin
 
         # 10 x 1 is treated as 1 x 10 inside merge_csr_mv!
-        A = SparseArrays.sprand(Complex{Float64}, 10, 1, 0.3)
+        A = sprand(Complex{Float64}, 10, 1, 0.3)
 
         x = rand(eltype(A), size(A, 1))
 
@@ -73,7 +73,7 @@ end
 
         merge_csr_mv!(1.1, A, x, y, transpose)
 
-        @test (transpose(Matrix(A)) * x) * 1.1 ≈ y
+        @test (transpose(A) * x) * 1.1 ≈ y
     end
 
 
@@ -92,7 +92,7 @@ end
 
 # test fails, y seems to have lots of zero-entries
 @testset "Square (Real)" begin
-    A = SparseArrays.sprand(10,10,0.3)
+    A = sprand(10,10,0.3)
 
     # 10 x 1
     x = rand(10)
@@ -102,12 +102,12 @@ end
 
     merge_csr_mv!(1.1, A, x, y, adjoint)
 
-    @test (adjoint(Matrix(A)) * x) * 1.1 ≈ y
+    @test (adjoint(A) * x) * 1.1 ≈ y
 
 end
 
 @testset "Square (Complex)" begin
-    A = SparseArrays.sprand(Complex{Float64}, 10, 10, 0.3)
+    A = sprand(Complex{Float64}, 10, 10, 0.3)
 
     x = 10 * rand(Complex{Float64}, 10)
 
@@ -115,7 +115,7 @@ end
 
     merge_csr_mv!(1.1, A, x, y, adjoint)
 
-    @test (adjoint(Matrix(A)) * x) * 1.1 ≈ y
+    @test (adjoint(A) * x) * 1.1 ≈ y
 end
 
 @testset "4x6 (Real)" begin
@@ -138,7 +138,7 @@ end
     merge_csr_mv!(2.0, A, x, y, adjoint)
 
 
-    @test Matrix(adjoint(m)) * x * 2.0 == y
+    @test adjoint(m) * x * 2.0 == y
 end
 
 @testset "4 x 6 (Complex)" begin
@@ -160,13 +160,13 @@ end
     # multiply
     merge_csr_mv!(2.0, A, x, y, adjoint)
 
-    @test Matrix(adjoint(m)) * x * 2.0 == y
+    @test adjoint(m) * x * 2.0 == y
 
 end
 
 @testset "100x100 (Real)" begin
     # create matrix
-    A = SparseArrays.sprand(100, 100, 0.3)
+    A = sprand(100, 100, 0.3)
 
     # create vector
     x = rand(100)
@@ -176,12 +176,12 @@ end
 
     merge_csr_mv!(3.0, A, x, y, transpose)
 
-    @test transpose(Matrix(A)) * x * 3 ≈ y
+    @test transpose(A) * x * 3 ≈ y
 end
 
 @testset "100x100 (Complex)" begin
     # create matrix
-    A = SparseArrays.sprand(Complex{Float64}, 100, 100, 0.3)
+    A = sprand(Complex{Float64}, 100, 100, 0.3)
 
     # create vector
     x = rand(Complex{Float64}, 100)
@@ -191,7 +191,7 @@ end
 
     merge_csr_mv!(3.0, A, x, y, transpose)
 
-    @test transpose(Matrix(A)) * x * 3 ≈ y
+    @test transpose(A) * x * 3 ≈ y
 end
 
 #=
@@ -215,7 +215,7 @@ end
         merge_csr_mv!(α, A, col, Y_view, transpose)
     end
 
-    @test transpose(Matrix(A)) * X * 9.2 ≈ Y 
+    @test transpose(A) * X * 9.2 ≈ Y 
 
 end
 
@@ -236,6 +236,6 @@ end
         merge_csr_mv!(α, A, col, Y_view, adjoint)
     end
 
-    @test adjoint(Matrix(A)) * X * 9.2 ≈ Y 
+    @test adjoint(A) * X * 9.2 ≈ Y 
 
 end

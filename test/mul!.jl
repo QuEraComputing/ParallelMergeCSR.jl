@@ -14,9 +14,7 @@ using SparseArrays
     C_copy = deepcopy(C)
     β = 3.9
 
-    SparseArrays.mul!(C, A, B, α, β)
-
-    @test C ≈ Matrix(A) * B * α + C_copy * β
+    @test ParallelMergeCSR.mul!(C, A, B, α, β) ≈ SparseArrays.mul!(C_copy, A, B, α, β)
 
 end
 
@@ -31,9 +29,7 @@ end
     C_copy = deepcopy(C)
     β = 1.2
 
-    SparseArrays.mul!(C, A, B, α, β)
-
-    @test C ≈ Matrix(A) * B * α + C_copy * β
+    @test ParallelMergeCSR.mul!(C, A, B, α, β) ≈ SparseArrays.mul!(C_copy, A, B, α, β)
 
 end
 # trigger merge_csr_mv!
@@ -49,10 +45,8 @@ end
     C_copy = deepcopy(C)
     β = 1.0
 
-    SparseArrays.mul!(C, A, B, α, β)
-
     # right hand side is correct, left hand side is problematic
-    @test C ≈ Matrix(A) * B * α + C_copy * β
+    @test ParallelMergeCSR.mul!(C, A, B, α, β) ≈ SparseArrays.mul!(C_copy, A, B, α, β)
 
 end
 
@@ -67,9 +61,8 @@ end
     C_copy = deepcopy(C)
     β = 6.11 + 9.2im
 
-    SparseArrays.mul!(C, A, B, α, β)
 
-    @test C ≈ Matrix(A) * B * α + C_copy * β
+    @test ParallelMergeCSR.mul!(C, A, B, α, β) ≈ SparseArrays.mul!(C_copy, A, B, α, β)
 end
 
 @testset "Transpose Rectangular Real" begin
@@ -83,9 +76,7 @@ end
     C_copy = deepcopy(C)
     β = 1.0
 
-    SparseArrays.mul!(C, A, B, α, β)
-
-    @test C ≈ Matrix(A) * B * α + C_copy * β
+    @test ParallelMergeCSR.mul!(C, A, B, α, β) ≈ SparseArrays.mul!(C_copy, A, B, α, β)
 
 end
 
@@ -100,9 +91,7 @@ end
     C_copy = deepcopy(C)
     β = 1.0
 
-    SparseArrays.mul!(C, A, B, α, β)
-
-    @test C ≈ Matrix(A) * B * α + C_copy * β
+    @test ParallelMergeCSR.mul!(C, A, B, α, β) ≈ SparseArrays.mul!(C_copy, A, B, α, β)
 
 end
 
@@ -117,8 +106,7 @@ end
     C_copy = deepcopy(C)
     β = 0.3
 
-    SparseArrays.mul!(C, A, B, α, β)
-    @test C ≈ Matrix(A) * B * α + C_copy * β
+    @test ParallelMergeCSR.mul!(C, A, B, α, β) ≈ SparseArrays.mul!(C_copy, A, B, α, β)
 
 end
 
@@ -133,8 +121,7 @@ end
     C_copy = deepcopy(C)
     β = 0.3
 
-    SparseArrays.mul!(C, A, B, α, β)
-    @test C ≈ Matrix(A) * B * α + C_copy * β
+    @test ParallelMergeCSR.mul!(C, A, B, α, β) ≈ SparseArrays.mul!(C_copy, A, B, α, β)
 
 end
 
@@ -148,9 +135,7 @@ end
     C_copy = deepcopy(C)
     β = 5.2
 
-    SparseArrays.mul!(C, A, B, α, β)
-
-    @test C ≈ Matrix(A) * B * α + C_copy * β
+    @test ParallelMergeCSR.mul!(C, A, B, α, β) ≈ SparseArrays.mul!(C_copy, A, B, α, β)
 end
 
 @testset "Matrix x Vector (Real)" begin
@@ -163,9 +148,7 @@ end
     C_copy = deepcopy(C)
     β = 5.2
 
-    SparseArrays.mul!(C, A, B, α, β)
-
-    @test C ≈ Matrix(A) * B * α + C_copy * β
+    @test ParallelMergeCSR.mul!(C, A, B, α, β) ≈ SparseArrays.mul!(C_copy, A, B, α, β)
 
 end
 
@@ -179,8 +162,6 @@ end
     C_copy = deepcopy(C)
     β = 2.1+0.1im
 
-    SparseArrays.mul!(C, A, B, α, β)
-
-    @test C ≈ Matrix(A) * B * α + C_copy * β
+    @test ParallelMergeCSR.mul!(C, A, B, α, β) ≈ SparseArrays.mul!(C_copy, A, B, α, β)
 
 end
