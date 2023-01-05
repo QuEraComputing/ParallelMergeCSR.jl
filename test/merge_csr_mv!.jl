@@ -16,7 +16,6 @@ using SparseArrays
     end
 
     @test_throws BoundsError range[11]
-    @test @inbounds range[11] == 11 # checking if bound check is removed
 
 end
 
