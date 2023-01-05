@@ -9,6 +9,8 @@ using SparseArrays: AbstractSparseMatrixCSC,
                     getcolptr
 
 
+export mul!
+
 include("parallel_csr_mv.jl")
 include("parallel_csc_mv.jl")
 

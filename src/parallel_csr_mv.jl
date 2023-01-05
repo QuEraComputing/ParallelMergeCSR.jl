@@ -121,7 +121,7 @@ end
 # C = transpose(A)B + Cβ
 # C = xABα + Cβ
 for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
-    @eval function SparseArrays.mul!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSC}, B::DenseInputVecOrMat, α::Number, β::Number)
+    @eval function mul!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSC}, B::DenseInputVecOrMat, α::Number, β::Number)
         # obtains the original matrix underneath the "lazy wrapper"
         A = xA.parent
         size(A, 2) == size(C, 1) || throw(DimensionMismatch())
