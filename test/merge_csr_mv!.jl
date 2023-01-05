@@ -1,12 +1,26 @@
 using Test
-using ParallelMergeCSR: merge_csr_mv!
+using ParallelMergeCSR: merge_csr_mv!, Range
 using SparseArrays
+
+
+@testset "Range" begin
+    
+    range = Range(1,10)
+
+    @test length(range) == 10
+    @test size(range,1) == 10
+    @test size(range,2) == 1
+
+    for i in 1:10
+        @test range[i] == i
+    end
+
+end
 
 ## NOTE: Sparse matrices are converted to dense form in the @test's
 ##       considering that our redefinition of SparseArrays.mul! seems to
 ##       interfere
 @testset "Extreme Cases" begin
-
     @testset "Singleton (Real)" begin
         A = sparse(reshape([1], 1, 1))
 

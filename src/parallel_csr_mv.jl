@@ -5,7 +5,7 @@ struct Range <: AbstractVector{Int}
     stop::Int
 end
 
-Base.length(range::Range) =  (range.stop-range.start)
+Base.length(range::Range) =  (range.stop-range.start) + 1 # includes both ends
 Base.size(range::Range) = (length(range),)
 
 function Base.getindex(range::Range,index::Int)
