@@ -11,8 +11,8 @@ end
 Base.length(range::Range) =  (range.stop-range.start) # includes both ends
 Base.size(range::Range) = (length(range),)
 
-function Base.getindex(range::Range,index::Int)
-    (0 < index ≤ length(range)) || throw(BoundsError("attempting to access the $(range.stop-range.start)-element Range at index [$(index)]"))
+@inline function Base.getindex(range::Range,index::Int)
+    @boundscheck (0 < index ≤ length(range)) || throw(BoundsError("attempting to access the $(range.stop-range.start)-element Range at index [$(index)]"))
     return index + range.start
 end
 

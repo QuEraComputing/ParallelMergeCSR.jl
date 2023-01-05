@@ -15,6 +15,9 @@ using SparseArrays
         @test range[i] == i
     end
 
+    @test_throws BoundsError range[11]
+    @test @inbounds range[11] == 11 # checking if bound check is removed
+
 end
 
 ## NOTE: Sparse matrices are converted to dense form in the @test's
