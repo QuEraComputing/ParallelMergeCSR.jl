@@ -12,7 +12,7 @@ df = DataFrame(CSV.File("Benchmark-Data.csv"))
 parallel_merge_csr_times = Float64[]
 
 # number of samples (single time/memory observation) to take
-BenchmarkTools.DEFAULT_PARAMETERS.samples = 50
+BenchmarkTools.DEFAULT_PARAMETERS.samples = 20
 # number of evaluation per sample
 BenchmarkTools.DEFAULT_PARAMETERS.evals = 100
 
