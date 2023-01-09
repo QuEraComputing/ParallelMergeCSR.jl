@@ -25,7 +25,7 @@ for num_atoms in Int.(log2.(df[!,"Matrix Size"]))
     # create Hamiltonian
     h = rydberg_h(atoms; Δ=1.2*2π, Ω=1.1*2π)
     # convert to sparse matrix with adjoint
-    A = h |> mat |> adjoint
+    A = transpose(mat(Float64, h))
     # random vector to multiply with A
     B = rand(size(A, 2))
     # store result
