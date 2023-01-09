@@ -1,8 +1,8 @@
 using CSV
 using DataFrames
 
-# from 1 to 13 Rydberg atoms
-matrix_sizes = [2^i for i in 1:3:28]
+# from 10 to 30 Rydberg atoms, skipping every other number
+matrix_sizes = [2^i for i in 10:2:30]
 
 df = DataFrame(
     "Matrix Size" => matrix_sizes,
