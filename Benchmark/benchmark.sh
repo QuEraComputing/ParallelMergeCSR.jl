@@ -2,8 +2,8 @@
 echo "Creating Benchmarks CSV"
 julia --project=. prepare_csv.jl
 
-#echo "Benchmarking SparseArrays"
-#julia --project=. SparseArrays-Benchmark.jl
+echo "Benchmarking SparseArrays"
+julia --project=. SparseArrays-Benchmark.jl
 
 for i in {0..7}
 do
