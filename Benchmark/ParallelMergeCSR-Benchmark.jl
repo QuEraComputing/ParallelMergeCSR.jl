@@ -7,7 +7,6 @@ using Bloqade
 
 
 # open premade CSV
-df = DataFrame(CSV.File("Benchmark-Data.csv"))
 
 # number of samples (single time/memory observation) to take
 BenchmarkTools.DEFAULT_PARAMETERS.samples = 2000
@@ -32,7 +31,8 @@ for num_atoms in 10:2:30
     β = 1.0
 
     t = @benchmark ParallelMergeCSR.mul!($C, $A, $B, $α, $β)
-
+    
+    df = DataFrame(CSV.File("Benchmark-Data.csv"))
     df[!, "PMCSR $(Threads.nthreads()) Thread, $num_atoms atoms"] = t.times
     CSV.write("Benchmark-Data.csv", df)
     

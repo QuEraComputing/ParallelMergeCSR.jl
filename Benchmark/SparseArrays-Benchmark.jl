@@ -5,7 +5,6 @@ using DataFrames
 using Bloqade
 
 # open pre-made CSV
-df = DataFrame(CSV.File("Benchmark-Data.csv"))
 
 # number of samples (single time/memory observation) to take
 BenchmarkTools.DEFAULT_PARAMETERS.samples = 2000
@@ -31,6 +30,7 @@ for num_atoms in 10:2:30
 
     t = @benchmark SparseArrays.mul!($C, $A, $B, $α, $β)
 
+    df = DataFrame(CSV.File("Benchmark-Data.csv"))
     df[!, "SparseArrays $num_atoms atoms"] = t.times
     CSV.write("Benchmark-Data.csv", df)
 end
