@@ -7,16 +7,13 @@ using Bloqade
 # open pre-made CSV
 df = DataFrame(CSV.File("Benchmark-Data.csv"))
 
-# based on lattice sizes
-sparse_arrays_times = Float64[]
-
 # number of samples (single time/memory observation) to take
-BenchmarkTools.DEFAULT_PARAMETERS.samples = 20
+BenchmarkTools.DEFAULT_PARAMETERS.samples = 2000
 # number of evaluation per sample
-BenchmarkTools.DEFAULT_PARAMETERS.evals = 100
+BenchmarkTools.DEFAULT_PARAMETERS.evals = 1
 
-# extend to 30 atoms for more rigorous testing
-for num_atoms in Int.(log2.(df[!,"Matrix Size"]))
+# first columns are all sparseArrays
+for num_atoms in enumerate(10:2:30)
     
     println("Number of Atoms: $num_atoms")
     # create lattice
@@ -33,11 +30,7 @@ for num_atoms in Int.(log2.(df[!,"Matrix Size"]))
     β = 1.0
 
     t = @benchmark SparseArrays.mul!($C, $A, $B, $α, $β)
-    push!(sparse_arrays_times, median(t).time)
+
+    df["SparseArrays $num_atoms atoms"] = t.times
+    CSV.write("Benchmark-Data.csv", df)
 end
-
-# store results
-df[!, "SparseArrays"] = sparse_arrays_times
-
-# save file
-CSV.write("Benchmark-Data.csv", df)

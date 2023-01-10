@@ -9,15 +9,13 @@ using Bloqade
 # open premade CSV
 df = DataFrame(CSV.File("Benchmark-Data.csv"))
 
-parallel_merge_csr_times = Float64[]
-
 # number of samples (single time/memory observation) to take
-BenchmarkTools.DEFAULT_PARAMETERS.samples = 20
+BenchmarkTools.DEFAULT_PARAMETERS.samples = 2000
 # number of evaluation per sample
-BenchmarkTools.DEFAULT_PARAMETERS.evals = 100
+BenchmarkTools.DEFAULT_PARAMETERS.evals = 1
 
 # extend to 30 atoms for more rigorous testing
-for num_atoms in Int.(log2.(df[!,"Matrix Size"]))
+for num_atoms in enumerate(10:2:30)
     
     println("Number of Atoms: $num_atoms")
     # create lattice
@@ -34,11 +32,8 @@ for num_atoms in Int.(log2.(df[!,"Matrix Size"]))
     β = 1.0
 
     t = @benchmark ParallelMergeCSR.mul!($C, $A, $B, $α, $β)
-    push!(parallel_merge_csr_times, median(t).time)
+
+    df[!, "PMCSR $(Threads.nthreads()) Thread, $num_atoms atoms"] = t.times
+    CSV.write("Benchmark-Data.csv", df)
+    
 end
-
-# store results
-df[!, "PMCSR $(Threads.nthreads()) Thread"] = parallel_merge_csr_times
-
-# save file
-CSV.write("Benchmark-Data.csv", df)

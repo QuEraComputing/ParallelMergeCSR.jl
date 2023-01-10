@@ -1,13 +1,16 @@
 using CSV
 using DataFrames
 
-# from 10 to 30 Rydberg atoms, skipping every other number
-matrix_sizes = [2^i for i in 10:2:30]
+num_atoms = 10:2:30
+num_evals = 2000
 
+# should have 2000 rows
+# SparseArrays 11 Atoms, 12 Atoms...
+# PMCSR # threads 11 Atoms, 12 Atoms 
 df = DataFrame(
-    "Matrix Size" => matrix_sizes,
-    "SparseArrays" => missing,
-    ["PMCSR $thread Thread" => missing for thread in [2^i for i in 0:7]]...
-    )
+    ["SparseArrays $atoms atoms"  => zeros(Float64, num_evals) for atoms in num_atoms]...,
+    ["PCMSR $(2^i) Thread, $atoms atoms" => zeros(Float64, num_evals) for i in 0:7 for atoms in num_atoms]...,
+    #["PMCSR $(2^i) Thread, $i atoms" => [[Vector{Float64}() for i in collect(length(num_atoms))] for i in 0:7] for i in num_atoms]...
+)
 
 CSV.write("Benchmark-Data.csv", df)
