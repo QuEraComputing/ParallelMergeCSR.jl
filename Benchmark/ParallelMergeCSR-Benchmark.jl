@@ -15,7 +15,7 @@ BenchmarkTools.DEFAULT_PARAMETERS.samples = 2000
 BenchmarkTools.DEFAULT_PARAMETERS.evals = 1
 
 # extend to 30 atoms for more rigorous testing
-for num_atoms in enumerate(10:2:30)
+for num_atoms in 10:2:30
     
     println("Number of Atoms: $num_atoms")
     # create lattice

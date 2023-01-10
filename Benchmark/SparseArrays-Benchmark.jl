@@ -13,7 +13,7 @@ BenchmarkTools.DEFAULT_PARAMETERS.samples = 2000
 BenchmarkTools.DEFAULT_PARAMETERS.evals = 1
 
 # first columns are all sparseArrays
-for num_atoms in enumerate(10:2:30)
+for num_atoms in 10:2:30
     
     println("Number of Atoms: $num_atoms")
     # create lattice
@@ -31,6 +31,6 @@ for num_atoms in enumerate(10:2:30)
 
     t = @benchmark SparseArrays.mul!($C, $A, $B, $α, $β)
 
-    df["SparseArrays $num_atoms atoms"] = t.times
+    df[!, "SparseArrays $num_atoms atoms"] = t.times
     CSV.write("Benchmark-Data.csv", df)
 end
