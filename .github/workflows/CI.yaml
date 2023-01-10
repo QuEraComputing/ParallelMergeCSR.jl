@@ -41,10 +41,12 @@ jobs:
       - name: "Confirm Number of Threads"
         run: julia -e 'println(Threads.nthreads())'
       - uses: julia-actions/julia-buildpkg@v1
-      # remove runtest with single step that handles coverage as well
+      # Only get code coverage and tests ONCE
       - name: "Run Tests and Get Code Coverage"
+        if: ${{matrix.julia-num-threads == 2}}
         run: julia --project=. -e "using Pkg; Pkg.test(;coverage=true)"
       - name: "Send to Codecov"
+        if: ${{matrix.julia-num-threads == 2}}
         uses: "codecov/codecov-action@v3"
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
