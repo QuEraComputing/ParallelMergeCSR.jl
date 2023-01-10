@@ -5,6 +5,7 @@ using CSV
 using DataFrames
 using Bloqade
 
+df = DataFrame(CSV.File("Benchmark-Data.csv"))
 
 for num_atoms in 10:2:30
     
@@ -22,9 +23,8 @@ for num_atoms in 10:2:30
     α = 1.0
     β = 1.0
 
-    t = @benchmark ParallelMergeCSR.mul!($C, $A, $B, $α, $β) samples=2000 evals=1
+    t = @benchmark ParallelMergeCSR.mul!($C, $A, $B, $α, $β) samples=2000 evals=1 seconds=172800
 
-    df = DataFrame(CSV.File("Benchmark-Data.csv"))
     df[!, "PMCSR $(Threads.nthreads()) Thread, $num_atoms atoms"] = t.times
     CSV.write("Benchmark-Data.csv", df)
     
