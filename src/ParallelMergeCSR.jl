@@ -12,6 +12,5 @@ using SparseArrays: AbstractSparseMatrixCSC,
 export mul!
 
 include("parallel_csr_mv.jl")
-include("parallel_csc_mv.jl")
 
 end # end of the module
