@@ -191,7 +191,7 @@ end
 end
 
 #=
-    NOTE: While merge_csr_mv! can be used this way, the overriden SparseArrays.mul!
+    NOTE: While merge_csr_mv! can be used this way, the mul!
     should be the preferred method to do Matrix-Matrix multiplication.
 =#
 @testset "Matrix-Matrix (Real)" begin
