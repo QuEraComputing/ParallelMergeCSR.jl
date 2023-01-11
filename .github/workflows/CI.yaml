@@ -43,10 +43,10 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       # Only get code coverage and tests ONCE
       - name: "Run Tests and Get Code Coverage"
-        if: ${{matrix.julia-num-threads == 2}}
+        if: ${{matrix.julia-num-threads == 8}}
         run: julia --project=. -e "using Pkg; Pkg.test(;coverage=true)"
       - name: "Send to Codecov"
-        if: ${{matrix.julia-num-threads == 2}}
+        if: ${{matrix.julia-num-threads == 8}}
         uses: "codecov/codecov-action@v3"
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
