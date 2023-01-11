@@ -19,9 +19,6 @@ using SparseArrays: sprand, sparse
 
 end
 
-## NOTE: Sparse matrices are converted to dense form in the @test's
-##       considering that our redefinition of SparseArrays.mul! seems to
-##       interfere
 @testset "Extreme Cases" begin
     @testset "Singleton (Real)" begin
         A = sparse(reshape([1], 1, 1))
@@ -90,7 +87,6 @@ end
     =#
 end
 
-# test fails, y seems to have lots of zero-entries
 @testset "Square (Real)" begin
     A = sprand(10,10,0.3)
 
