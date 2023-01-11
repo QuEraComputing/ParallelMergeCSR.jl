@@ -12,7 +12,7 @@ the &nbsp;
     &nbsp;
 </p>
 
-ParallelMergeCSR allows you to perform *multithreaded* sparse Matrix multiplication against dense vectors and matrices as long as the sparse Matrix has had a **transpose** or **adjoint** operation applied to it via `LinearAlgebra`, built-in to Julia Base.
+ParallelMergeCSR allows you to perform *multithreaded* [CSC formatted sparse Matrix](https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_column_.28CSC_or_CCS.29) multiplication against dense vectors and matrices as long as the sparse Matrix has had a **transpose** or **adjoint** operation applied to it via `LinearAlgebra`, built-in to Julia Base. The reason for this is the original algorithm was restricted to [CSR formatted sparse Matrices](https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_row_(CSR,_CRS_or_Yale_format)) but by taking the transpose of a CSC matrix you've created a CSR representation of the same matrix.
 
 ParallelMergeCSR only exports one function: `mul!` which is used for both Sparse Matrix - Dense Vector and Sparse Matrix - Dense Matrix multiplication.
 
