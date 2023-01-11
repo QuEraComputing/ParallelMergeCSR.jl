@@ -175,7 +175,8 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
     """
         mul!(C::StridedVecOrMat, xA::$($T){<:Any,<:AbstractSparseMatrixCSC}, B::DenseInputVecOrMat, α::Number, β::Number)
 
-    Performs the operation C = xABα + Cβ where xA is an `AbstractSparseMatrixCSC` that has been wrapped by `$($T)` from LinearAlgebra.
+    Performs the operation C = xABα + Cβ where xA is an `AbstractSparseMatrixCSC` that has been wrapped by `$($T)`
+    (accomplishable by calling `$($t)` on the CSC matrix).
     """
         function mul!(C::StridedVecOrMat, xA::$T{<:Any,<:AbstractSparseMatrixCSC}, B::DenseInputVecOrMat, α::Number, β::Number)
             # obtains the original matrix underneath the "lazy wrapper"
