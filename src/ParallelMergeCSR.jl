@@ -1,6 +1,5 @@
 module ParallelMergeCSR
 
-using Atomix
 using Base.Threads
 using SparseArrays
 using LinearAlgebra: Adjoint,adjoint,Transpose,transpose
