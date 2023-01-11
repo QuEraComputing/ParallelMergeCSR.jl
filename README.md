@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/QuEraComputing/Bloqade.jl/workflows/CI/badge.svg)](https://github.com/QuEraComputing/Bloqade.jl/actions)
 
 <p>
-An implementation/port of <a href="ttps://rd.yyrcd.com/CUDA/2022-03-14-Merge-based%20Parallel%20Sparse%20Matrix-Vector%20Multiplication.pdf">Merrill and Garland's Merge-based Parallel Sparse Matrix-Vector Multiplication (10.1109/SC.2016.57)</a> paper in 
+An implementation/port of <a href="https://rd.yyrcd.com/CUDA/2022-03-14-Merge-based%20Parallel%20Sparse%20Matrix-Vector%20Multiplication.pdf"> Merrill and Garland's Merge-based Parallel Sparse Matrix-Vector Multiplication (10.1109/SC.2016.57) </a> paper in 
 the &nbsp;
     <a href="https://julialang.org">
         <img src="https://raw.githubusercontent.com/JuliaLang/julia-logo-graphics/master/images/julia.ico" width="16em">
