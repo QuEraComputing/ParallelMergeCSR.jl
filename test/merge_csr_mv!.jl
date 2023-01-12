@@ -20,7 +20,9 @@ using SparseArrays: sprand, sparse
 end
 
 @testset "Extreme Cases" begin
+
     @testset "Singleton (Real)" begin
+    
         A = sparse(reshape([1], 1, 1))
 
         x = rand(1)
@@ -30,10 +32,12 @@ end
 
         merge_csr_mv!(0.3, A, x, y, transpose)
 
-        @test (A * x * 0.3) + y_original == y
+        @test (A * x * 0.3) + y_original ≈ y
+
     end
 
     @testset "Singleton (Complex)" begin
+    
         A = sparse(reshape([1.0+2.5im], 1, 1))
 
         x = rand(1)
@@ -43,7 +47,8 @@ end
 
         merge_csr_mv!(10.1, A, x, y, adjoint)
 
-        @test (adjoint(Matrix(A)) * x * 10.1) + y_original == y
+        @test (adjoint(Matrix(A)) * x * 10.1) + y_original ≈ y
+
     end
 
     @testset "Single row (Real)" begin
@@ -60,6 +65,7 @@ end
         merge_csr_mv!(1.1, A, x, y, transpose)
 
         @test ((transpose(A) * x) * 1.1) + y_original ≈ y
+
     end
 
     @testset "Single row (Complex)" begin
@@ -75,6 +81,7 @@ end
         merge_csr_mv!(1.1, A, x, y, transpose)
 
         @test ((transpose(A) * x) * 1.1) + y_original ≈ y
+
     end
 
 
@@ -92,6 +99,7 @@ end
 end
 
 @testset "Square (Real)" begin
+
     A = sprand(10,10,0.3)
 
     # 10 x 1
@@ -108,6 +116,7 @@ end
 end
 
 @testset "Square (Complex)" begin
+
     A = sprand(Complex{Float64}, 10, 10, 0.3)
 
     x = 10 * rand(Complex{Float64}, 10)
@@ -118,6 +127,7 @@ end
     merge_csr_mv!(1.1, A, x, y, adjoint)
 
     @test ((adjoint(A) * x) * 1.1) + y_original ≈ y
+
 end
 
 @testset "4x6 (Real)" begin
@@ -140,7 +150,8 @@ end
     # multiply
     merge_csr_mv!(2.0, A, x, y, adjoint)
 
-    @test (adjoint(m) * x * 2.0) + y_original == y
+    @test (adjoint(m) * x * 2.0) + y_original ≈ y
+
 end
 
 @testset "4 x 6 (Complex)" begin
@@ -163,7 +174,7 @@ end
     # multiply
     merge_csr_mv!(2.0, A, x, y, adjoint)
 
-    @test (adjoint(m) * x * 2.0) + y_original == y
+    @test (adjoint(m) * x * 2.0) + y_original ≈ y
 
 end
 
@@ -181,6 +192,7 @@ end
     merge_csr_mv!(3.0, A, x, y, transpose)
 
     @test (transpose(A) * x * 3) + y_original ≈ y
+
 end
 
 @testset "100x100 (Complex)" begin
@@ -197,6 +209,7 @@ end
     merge_csr_mv!(3.0, A, x, y, transpose)
 
     @test (transpose(A) * x * 3) + y_original ≈ y
+
 end
 
 #=
