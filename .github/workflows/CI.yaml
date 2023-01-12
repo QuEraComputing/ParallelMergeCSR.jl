@@ -51,3 +51,5 @@ jobs:
       - name: "Submit to codecov"
         if: ${{matrix.julia-num-threads == 8}}
         uses: julia-actions/codecov-action@v3
+        with:
+          files: lcov.info
