@@ -18,6 +18,7 @@ using SparseArrays
         ParallelMergeCSR.mul!(C, A, B, α, β)
         SparseArrays.mul!(C_copy, A, B, α, β)
         @test C ≈ C_copy
+
     end
 
     @testset "Adjoint Complex Matrix" begin
@@ -51,6 +52,7 @@ using SparseArrays
         ParallelMergeCSR.mul!(C, A, B, α, β)
         SparseArrays.mul!(C_copy, A, B, α, β)
         @test C ≈ C_copy
+
     end
 
     @testset "Transpose Complex Matrix" begin
@@ -66,7 +68,9 @@ using SparseArrays
         ParallelMergeCSR.mul!(C, A, B, α, β)
         SparseArrays.mul!(C_copy, A, B, α, β)
         @test C ≈ C_copy
+        
     end
+
 end
 
 # trigger merge_csr_mv! in this repo, does not default to mul! somewhere else
@@ -121,7 +125,6 @@ end
         SparseArrays.mul!(C_copy, A, B, α, β)
         @test C ≈ C_copy
 
-    
     end
 
     @testset "Transpose Square Complex" begin
@@ -137,6 +140,7 @@ end
         ParallelMergeCSR.mul!(C, A, B, α, β)
         SparseArrays.mul!(C_copy, A, B, α, β)
         @test C ≈ C_copy
+
     end
 
     @testset "Transpose Rectangular Real" begin
@@ -172,4 +176,5 @@ end
         @test C ≈ C_copy
     
     end
+
 end
