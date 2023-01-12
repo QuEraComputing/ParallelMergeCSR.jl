@@ -42,7 +42,11 @@ jobs:
         run: julia -e 'println(Threads.nthreads())'
       - uses: julia-actions/julia-buildpkg@v1
       # Only get code coverage and tests ONCE
-      - name: "Run Tests and Get Code Coverage"
+      - name: "Run Tests"
+        if: ${{matrix.julia-num-threads != 8}}
+        run: julia --project=. -e "using Pkg; Pkg.test()"
+      - name: "Get Code Coverage"
+        if: ${{matrikx.julia-num-threads == 8}}
         run: julia --project=. -e "using Pkg; Pkg.test(;coverage=true)"
       - name: "Send to Codecov"
         if: ${{matrix.julia-num-threads == 8}}
