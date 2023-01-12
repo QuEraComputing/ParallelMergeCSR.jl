@@ -46,7 +46,7 @@ jobs:
         if: ${{matrix.julia-num-threads != 8}}
         run: julia --project=. -e "using Pkg; Pkg.test()"
       - name: "Get Code Coverage"
-        if: ${{matrikx.julia-num-threads == 8}}
+        if: ${{matrix.julia-num-threads == 8}}
         run: julia --project=. -e "using Pkg; Pkg.test(;coverage=true)"
       - name: "Send to Codecov"
         if: ${{matrix.julia-num-threads == 8}}
