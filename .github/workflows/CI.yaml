@@ -48,4 +48,5 @@ jobs:
         if: ${{matrix.julia-num-threads == 8}}
         uses: "codecov/codecov-action@v3"
         with:
+          directory: ./src
           token: ${{ secrets.CODECOV_TOKEN }}
