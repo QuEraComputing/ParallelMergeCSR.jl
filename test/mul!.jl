@@ -178,3 +178,39 @@ end
     end
 
 end
+
+# When β = 0, `mul!` just fills the given output vector with zeros before adding the solution to it
+# when β = 1, the contents of the output vector are not touched (skip multiplying by β altogether) before 
+# adding the solution to it
+@testset "β special cases" begin
+
+    @testset "β = 0" begin
+        A = transpose(sparse(zeros(10,10)))
+        B = rand(10)
+
+        α = 1.29
+
+        C = rand(10)
+        C_copy = deepcopy(C)
+        β = 0
+
+        ParallelMergeCSR.mul!(C, A, B, α, β)
+        SparseArrays.mul!(C_copy, A, B, α, β)
+        @test C == C_copy
+    end
+
+    @testset "β = 1" begin
+        A = transpose(sparse(zeros(10,10)))
+        B = rand(1:20, size(A, 2))
+
+        α = 6.2
+
+        C = rand(1:20, size(A, 2))
+        C_copy = deepcopy(C)
+        β = 1
+
+        ParallelMergeCSR.mul!(C, A, B, α, β)
+        SparseArrays.mul!(C_copy, A, B, α, β)
+        @test C == C_copy
+    end
+begin
