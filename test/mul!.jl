@@ -213,4 +213,5 @@ end
         SparseArrays.mul!(C_copy, A, B, α, β)
         @test C == C_copy
     end
-begin
+
+end
