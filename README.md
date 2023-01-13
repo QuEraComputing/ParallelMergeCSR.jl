@@ -19,11 +19,10 @@ ParallelMergeCSR only exports one function: `mul!` which is used for both Sparse
 
 ## Installation
 
-Enter the Julia Package Manager and install via:
+### NOTICE
+It will take *three days* before this package becomes part of the Julia registry meaning the instructions below will only work after those three days have elapsed.
 
-```
-pkg> add ParallelMergeCSR
-```
+To circumvent this, you can go into the Julia Package Manager and perform `add` with the URL of this repository.
 
 ## Usage
 
