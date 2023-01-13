@@ -2,7 +2,7 @@ name = "ParallelMergeCSR"
 uuid = "c4b929cc-6141-4ba4-8849-280a863346e1"
 authors = ["Phillip Weinberg <pweinberg@quera.com>",
            "John Long <jlong@quera.com>"]
-version = "0.1.1"
+version = "0.1.0"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
