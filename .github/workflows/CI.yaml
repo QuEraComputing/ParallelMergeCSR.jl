@@ -33,14 +33,23 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v3
+      - name: "Setup Julia"
+        uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
       - name: "Confirm Number of Threads"
         run: julia -e 'println(Threads.nthreads())'
       - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-runtest@v1
+      - name: "Run Tests"
+        uses: julia-actions/julia-runtest@v1
+        # Only get code coverage and tests ONCE
+      - name: "Process Coverage"
+        if: ${{matrix.julia-num-threads == 8}}
+        uses: julia-actions/julia-processcoverage@v1
+      - name: "Submit to codecov"
+        if: ${{matrix.julia-num-threads == 8}}
+        uses: codecov/codecov-action@v3
         with:
-          annotate: true
+          files: lcov.info

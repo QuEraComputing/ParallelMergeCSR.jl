@@ -19,32 +19,36 @@ using SparseArrays: sprand, sparse
 
 end
 
-## NOTE: Sparse matrices are converted to dense form in the @test's
-##       considering that our redefinition of SparseArrays.mul! seems to
-##       interfere
 @testset "Extreme Cases" begin
+
     @testset "Singleton (Real)" begin
+    
         A = sparse(reshape([1], 1, 1))
 
         x = rand(1)
 
-        y = zeros(size(A, 1))
+        y = rand(size(A, 1))
+        y_original = deepcopy(y)
 
         merge_csr_mv!(0.3, A, x, y, transpose)
 
-        @test A * x * 0.3 == y
+        @test (A * x * 0.3) + y_original ≈ y
+
     end
 
     @testset "Singleton (Complex)" begin
+    
         A = sparse(reshape([1.0+2.5im], 1, 1))
 
         x = rand(1)
 
-        y = zeros(eltype(A), size(A, 1))
+        y = rand(eltype(A), size(A, 1))
+        y_original = deepcopy(y)
 
         merge_csr_mv!(10.1, A, x, y, adjoint)
 
-        @test adjoint(Matrix(A)) * x * 10.1 == y
+        @test (adjoint(Matrix(A)) * x * 10.1) + y_original ≈ y
+
     end
 
     @testset "Single row (Real)" begin
@@ -55,11 +59,13 @@ end
         # x needs to be 10 x 1 
         x = rand(size(A, 1))
 
-        y = zeros(eltype(A), 1)
+        y = rand(eltype(A), 1)
+        y_original = deepcopy(y)
 
         merge_csr_mv!(1.1, A, x, y, transpose)
 
-        @test (transpose(A) * x) * 1.1 ≈ y
+        @test ((transpose(A) * x) * 1.1) + y_original ≈ y
+
     end
 
     @testset "Single row (Complex)" begin
@@ -70,10 +76,12 @@ end
         x = rand(eltype(A), size(A, 1))
 
         y = zeros(eltype(A), 1)
+        y_original = deepcopy(y)
 
         merge_csr_mv!(1.1, A, x, y, transpose)
 
-        @test (transpose(A) * x) * 1.1 ≈ y
+        @test ((transpose(A) * x) * 1.1) + y_original ≈ y
+
     end
 
 
@@ -90,32 +98,36 @@ end
     =#
 end
 
-# test fails, y seems to have lots of zero-entries
 @testset "Square (Real)" begin
+
     A = sprand(10,10,0.3)
 
     # 10 x 1
     x = rand(10)
 
     # 10 x 1
-    y = zeros(size(x))
+    y = rand(size(x)...)
+    y_original = deepcopy(y)
 
     merge_csr_mv!(1.1, A, x, y, adjoint)
 
-    @test (adjoint(A) * x) * 1.1 ≈ y
+    @test ((adjoint(A) * x) * 1.1) + y_original ≈ y
 
 end
 
 @testset "Square (Complex)" begin
+
     A = sprand(Complex{Float64}, 10, 10, 0.3)
 
     x = 10 * rand(Complex{Float64}, 10)
 
-    y = zeros(eltype(A), size(x))
+    y = rand(eltype(A), size(x)...)
+    y_original = deepcopy(y)
 
     merge_csr_mv!(1.1, A, x, y, adjoint)
 
-    @test (adjoint(A) * x) * 1.1 ≈ y
+    @test ((adjoint(A) * x) * 1.1) + y_original ≈ y
+
 end
 
 @testset "4x6 (Real)" begin
@@ -132,13 +144,14 @@ end
     x = [5,2,3,1]
 
     # create empty solution
-    y = zeros(Int64, size(A, 2))
+    y = rand(1:20, size(A, 2))
+    y_original = deepcopy(y)
     
     # multiply
     merge_csr_mv!(2.0, A, x, y, adjoint)
 
+    @test (adjoint(m) * x * 2.0) + y_original ≈ y
 
-    @test adjoint(m) * x * 2.0 == y
 end
 
 @testset "4 x 6 (Complex)" begin
@@ -155,12 +168,13 @@ end
     x = 22.1 * rand(Complex{Float64}, 4)
 
     # create empty solution
-    y = zeros(eltype(x), size(A, 2))
+    y = rand(eltype(x), size(A, 2))
+    y_original = deepcopy(y)
 
     # multiply
     merge_csr_mv!(2.0, A, x, y, adjoint)
 
-    @test adjoint(m) * x * 2.0 == y
+    @test (adjoint(m) * x * 2.0) + y_original ≈ y
 
 end
 
@@ -172,11 +186,13 @@ end
     x = rand(100)
 
     # create empty solution
-    y = zeros(size(A, 1))
+    y = rand(size(A, 1))
+    y_original = deepcopy(y)
 
     merge_csr_mv!(3.0, A, x, y, transpose)
 
-    @test transpose(A) * x * 3 ≈ y
+    @test (transpose(A) * x * 3) + y_original ≈ y
+
 end
 
 @testset "100x100 (Complex)" begin
@@ -187,15 +203,17 @@ end
     x = rand(Complex{Float64}, 100)
 
     # create empty solution
-    y = zeros(eltype(x), size(A, 1))
+    y = rand(eltype(x), size(A, 1))
+    y_original = deepcopy(y)
 
     merge_csr_mv!(3.0, A, x, y, transpose)
 
-    @test transpose(A) * x * 3 ≈ y
+    @test (transpose(A) * x * 3) + y_original ≈ y
+
 end
 
 #=
-    NOTE: While merge_csr_mv! can be used this way, the overriden SparseArrays.mul!
+    NOTE: While merge_csr_mv! can be used this way, the mul!
     should be the preferred method to do Matrix-Matrix multiplication.
 =#
 @testset "Matrix-Matrix (Real)" begin
@@ -208,14 +226,15 @@ end
 
     α = 9.2
 
-    Y = zeros(2, 4)
+    Y = rand(2, 4)
+    Y_original = deepcopy(Y)
 
     for (idx, col) in enumerate(eachcol(X))
         Y_view = @view Y[:, idx]
         merge_csr_mv!(α, A, col, Y_view, transpose)
     end
 
-    @test transpose(A) * X * 9.2 ≈ Y 
+    @test (transpose(A) * X * 9.2) + Y_original ≈ Y 
 
 end
 
@@ -230,12 +249,13 @@ end
     α = 9.2
 
     Y = zeros(eltype(A), 2, 4)
+    Y_original = deepcopy(Y)
 
     for (idx, col) in enumerate(eachcol(X))
         Y_view = @view Y[:, idx]
         merge_csr_mv!(α, A, col, Y_view, adjoint)
     end
 
-    @test adjoint(A) * X * 9.2 ≈ Y 
+    @test (adjoint(A) * X * 9.2) + Y_original ≈ Y 
 
 end
