@@ -8,9 +8,6 @@ using SparseArrays: AbstractSparseMatrixCSC,
                     getcolptr
 
 
-export mul!
-
-
 """
     Range <: AbstractVector{Int}
 
