@@ -2,11 +2,12 @@ module ParallelMergeCSR
 
 using Base.Threads
 using SparseArrays
-using LinearAlgebra: Adjoint,adjoint,Transpose,transpose
+using LinearAlgebra: Adjoint,adjoint,Transpose,transpose,rmul!,fill!
 using SparseArrays: AbstractSparseMatrixCSC,
                     DenseInputVecOrMat,
                     getcolptr
-
+using Polyester: @batch
+using StaticArrays
 
 """
     Range <: AbstractVector{Int}
@@ -17,40 +18,18 @@ Acts as a vector of integers from `start` to `stop` and used to represent indice
 
 See also: merge_csr_mv!
 """
-struct Range <: AbstractVector{Int}
-    start::Int
-    stop::Int
-    function Range(start::Int,stop::Int)
-        new(start-1,stop)
-    end
-end
+struct Counter end
+
+
 
 """
-    Base.length(range::Range)
+    Base.getindex(range::Counter,index::Int)
 
-Gets the length of a range as the number of integers represented from its `start` and `stop`
-inclusive on both ends.
-"""
-Base.length(range::Range) =  (range.stop-range.start) # includes both ends
-
-"""
-    Base.size(range::Range)
-
-Gets the size of a range, which is equal to its length.
-
-See also: `Base.length(range::Range)`
-"""
-Base.size(range::Range) = (length(range),)
-
-"""
-    Base.getindex(range::Range,index::Int)
-
-Index into a `Range` using `index` with an exception thrown if the index falls out of bounds
+Index into a `Counter` using `index` with an exception thrown if the index falls out of bounds
 of the range.
 """
-@inline function Base.getindex(range::Range,index::Int)
-    @boundscheck (0 < index ≤ length(range)) || throw(BoundsError("attempting to access the $(range.stop-range.start)-element Range at index [$(index)]"))
-    return index + range.start
+@inline function Base.getindex(::Counter,index::Int)
+    return index 
 end
 
 """
@@ -78,7 +57,7 @@ Given a `diagonal` the grid formed by the row offsets `a` and the indices of the
 as well as their respective lengths `a_len` and `b_len`, find the coordinate on the grid where a thread could 
 begin/end at for its workload.
 """
-function merge_path_search(diagonal::Int, a_len::Int, b_len::Int, a::AbstractVector, b::AbstractVector)
+function merge_path_search(diagonal::Int, a_len::Int, b_len::Int, a::AbstractVector, b::Counter)
 
     # diagonal -> i + j = k 
     # a_len and b_len can stay the same from the paper
@@ -90,7 +69,7 @@ function merge_path_search(diagonal::Int, a_len::Int, b_len::Int, a::AbstractVec
     # 2D binary-search along diagonal search range
     @inbounds while (x_min < x_max)
         pivot = (x_min + x_max) >> 1
-        if (a[pivot + 1] <= b[diagonal - pivot])
+        if (a[pivot + 2] <= b[diagonal - pivot])
             x_min = pivot + 1
         else
             x_max = pivot
@@ -117,7 +96,7 @@ Note that while A is a CSC-formatted sparse matrix, internally the function trea
 in a 2x4, internally it's a 4x2). The `op` argument is used to handle the case where the the CSC matrix should be treated 
 as if it's had the adjoint applied to it.
 """
-function merge_csr_mv!(α::Number, A::AbstractSparseMatrixCSC, input::StridedVector, output::StridedVector, op)
+function merge_csr_mv!(α::Number, A::AbstractSparseMatrixCSC, input::AbstractVecOrMat, output::AbstractVecOrMat, col_idx::Int, op)
 
     nzv = nonzeros(A)
     rv = rowvals(A)
@@ -127,15 +106,16 @@ function merge_csr_mv!(α::Number, A::AbstractSparseMatrixCSC, input::StridedVec
     
     nrows = A.n
 
-    nz_indices = Range(1,nnz)
-    row_end_offsets = cp[2:end] 
+    nz_indices = Counter()
     num_merge_items = nnz + nrows # preserve the dimensions of the original matrix
 
     num_threads = nthreads()
+    num_threads > 1024 && error("ParallelMergeCSR.jl only supports up to 1024 threads.")
+
     items_per_thread = (num_merge_items + num_threads - 1) ÷ num_threads
 
-    row_carry_out = zeros(eltype(cp), num_threads)
-    value_carry_out = zeros(eltype(output), num_threads) # value must match output
+    row_carry_out = zeros(MVector{1024,eltype(cp)})
+    value_carry_out = zeros(MVector{1024,eltype(output)}) # value must match output
 
     # Julia threads start id by 1, so make sure to offset!
     @threads for tid in 1:num_threads
@@ -143,18 +123,18 @@ function merge_csr_mv!(α::Number, A::AbstractSparseMatrixCSC, input::StridedVec
         diagonal_end = min(diagonal + items_per_thread, num_merge_items)
 
         # Get starting and ending thread coordinates (row, nzv)
-        thread_coord = merge_path_search(diagonal, nrows, nnz, row_end_offsets, nz_indices)
-        thread_coord_end = merge_path_search(diagonal_end, nrows, nnz, row_end_offsets, nz_indices)
+        thread_coord = merge_path_search(diagonal, nrows, nnz, cp, nz_indices)
+        thread_coord_end = merge_path_search(diagonal_end, nrows, nnz, cp, nz_indices)
 
         # Consume merge items, whole rows first
         running_total = zero(eltype(output))
         @inbounds while thread_coord.x < thread_coord_end.x
-            while thread_coord.y < row_end_offsets[thread_coord.x] 
-                running_total += op(nzv[thread_coord.y]) * input[rv[thread_coord.y]]
+            while thread_coord.y < cp[thread_coord.x+1] 
+                running_total += op(nzv[thread_coord.y]) * input[rv[thread_coord.y],col_idx]
                 thread_coord.y += 1
             end
 
-            output[thread_coord.x] += α * running_total
+            output[thread_coord.x,col_idx] += α * running_total
             running_total = zero(eltype(output))
             thread_coord.x += 1 
         end
@@ -162,7 +142,7 @@ function merge_csr_mv!(α::Number, A::AbstractSparseMatrixCSC, input::StridedVec
         # May have thread end up partially consuming a row.
         # Save result form partial consumption and do one pass at the end to add it back to y
         @inbounds while thread_coord.y < thread_coord_end.y
-            running_total += op(nzv[thread_coord.y]) * input[rv[thread_coord.y]]
+            running_total += op(nzv[thread_coord.y]) * input[rv[thread_coord.y],col_idx]
             thread_coord.y += 1
         end
 
@@ -174,7 +154,7 @@ function merge_csr_mv!(α::Number, A::AbstractSparseMatrixCSC, input::StridedVec
 
     @inbounds for tid in 1:num_threads
         if row_carry_out[tid] <= nrows
-            output[row_carry_out[tid]] += α * value_carry_out[tid]
+            output[row_carry_out[tid],col_idx] += α * value_carry_out[tid]
         end
     end
 
@@ -196,11 +176,73 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
             size(B, 2) == size(C, 2) || throw(DimensionMismatch())
             if β != 1
                 # preemptively handle β so we just handle C = ABα + C
-                β != 0 ? SparseArrays.rmul!(C, β) : fill!(C, zero(eltype(C)))
+                β != 0 ? rmul!(C, β) : fill!(C, zero(eltype(C)))
             end
-            for (col_idx, input) in enumerate(eachcol(B))
-                output = @view C[:, col_idx]
-                merge_csr_mv!(α, A, input, output, $t)
+
+
+            nzv = nonzeros(A)
+            rv = rowvals(A)
+            cp = getcolptr(A)
+        
+            nnz = length(nzv) 
+            
+            nrows = A.n
+        
+            nz_indices = Counter()
+            num_merge_items = nnz + nrows # preserve the dimensions of the original matrix
+        
+            num_threads = nthreads()
+            num_threads > 1024 && error("ParallelMergeCSR.jl only supports up to 1024 threads.")
+        
+            items_per_thread = (num_merge_items + num_threads - 1) ÷ num_threads
+        
+            row_carry_out = zeros(MVector{1024,eltype(cp)})
+            value_carry_out = zeros(MVector{1024,eltype(C)}) # value must match output
+        
+
+            for k in 1:size(C,2)
+                # merge_csr_mv!(α, A, B, C, col_idx, $t)
+                # Julia threads start id by 1, so make sure to offset!
+                @batch for tid in 1:num_threads
+
+                    diagonal = min(items_per_thread * (tid - 1), num_merge_items)
+                    diagonal_end = min(diagonal + items_per_thread, num_merge_items)
+            
+                    # Get starting and ending thread coordinates (row, nzv)
+                    thread_coord = merge_path_search(diagonal, nrows, nnz, cp, nz_indices)
+                    thread_coord_end = merge_path_search(diagonal_end, nrows, nnz, cp, nz_indices)
+            
+                    # Consume merge items, whole rows first
+                    running_total = zero(eltype(C))
+                    @inbounds while thread_coord.x < thread_coord_end.x
+                        while thread_coord.y < cp[thread_coord.x+1] 
+                            running_total += $t(nzv[thread_coord.y]) * B[rv[thread_coord.y],k]
+                            thread_coord.y += 1
+                        end
+            
+                        C[thread_coord.x,k] += α * running_total
+                        running_total = zero(eltype(C))
+                        thread_coord.x += 1 
+                    end
+                    
+                    # May have thread end up partially consuming a row.
+                    # Save result form partial consumption and do one pass at the end to add it back to y
+                    @inbounds while thread_coord.y < thread_coord_end.y
+                        running_total += $t(nzv[thread_coord.y]) * B[rv[thread_coord.y],k]
+                        thread_coord.y += 1
+                    end
+            
+                    # Save carry-outs
+                    @inbounds row_carry_out[tid] = thread_coord_end.x
+                    @inbounds value_carry_out[tid] = running_total
+            
+                end
+                
+                @inbounds for tid in 1:num_threads
+                    if row_carry_out[tid] <= nrows
+                        C[row_carry_out[tid],k] += α * value_carry_out[tid]
+                    end
+                end 
             end
             C
             # end of @eval macro
@@ -208,6 +250,8 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
     # end of for loop
     end
 end
+
+
 
 
 end # end of the module
