@@ -2,10 +2,14 @@ module ParallelMergeCSR
 
 using Base.Threads
 using SparseArrays
-using LinearAlgebra: Adjoint,adjoint,Transpose,transpose,rmul!,fill!
+using LinearAlgebra: Adjoint,adjoint,Transpose,transpose,fill!
 using SparseArrays: AbstractSparseMatrixCSC,
                     DenseInputVecOrMat,
-                    getcolptr
+                    getcolptr,
+                    nonzeros,
+                    rowvals,
+                    rmul!
+
 using Polyester: @batch
 using StaticArrays
 
@@ -19,8 +23,6 @@ Acts as a vector of integers from `start` to `stop` and used to represent indice
 See also: merge_csr_mv!
 """
 struct Counter end
-
-
 
 """
     Base.getindex(range::Counter,index::Int)
@@ -57,7 +59,7 @@ Given a `diagonal` the grid formed by the row offsets `a` and the indices of the
 as well as their respective lengths `a_len` and `b_len`, find the coordinate on the grid where a thread could 
 begin/end at for its workload.
 """
-function merge_path_search(diagonal::Int, a_len::Int, b_len::Int, a::AbstractVector, b::Counter)
+@inline function merge_path_search(diagonal::Int, a_len::Int, b_len::Int, a::AbstractVector, b::Counter)
 
     # diagonal -> i + j = k 
     # a_len and b_len can stay the same from the paper
@@ -83,83 +85,6 @@ function merge_path_search(diagonal::Int, a_len::Int, b_len::Int, a::AbstractVec
 
 end
 
-# Internally treats the matrix as if its been transposed/is an adjoint
-# e.g. if you pass in a 2x3, internally it's a 3x2 and can be an adjoint if you pass in `adjoint` as the op
-"""
-    merge_csr_mv!(α::Number,A::AbstractSparseMatrixCSC, input::StridedVector, output::StridedVector, op)
-
-An implementation of the C++ `OmpMergeCsrmv` function from the Merrill and Garland paper (https://doi.org/10.1109/SC.2016.57)
-
-Performs the operation A * input * α + output = output.
-
-Note that while A is a CSC-formatted sparse matrix, internally the function treats it as a CSR matrix (e.g. if you passed 
-in a 2x4, internally it's a 4x2). The `op` argument is used to handle the case where the the CSC matrix should be treated 
-as if it's had the adjoint applied to it.
-"""
-function merge_csr_mv!(α::Number, A::AbstractSparseMatrixCSC, input::AbstractVecOrMat, output::AbstractVecOrMat, col_idx::Int, op)
-
-    nzv = nonzeros(A)
-    rv = rowvals(A)
-    cp = getcolptr(A)
-
-    nnz = length(nzv) 
-    
-    nrows = A.n
-
-    nz_indices = Counter()
-    num_merge_items = nnz + nrows # preserve the dimensions of the original matrix
-
-    num_threads = nthreads()
-    num_threads > 1024 && error("ParallelMergeCSR.jl only supports up to 1024 threads.")
-
-    items_per_thread = (num_merge_items + num_threads - 1) ÷ num_threads
-
-    row_carry_out = zeros(MVector{1024,eltype(cp)})
-    value_carry_out = zeros(MVector{1024,eltype(output)}) # value must match output
-
-    # Julia threads start id by 1, so make sure to offset!
-    @threads for tid in 1:num_threads
-        diagonal = min(items_per_thread * (tid - 1), num_merge_items)
-        diagonal_end = min(diagonal + items_per_thread, num_merge_items)
-
-        # Get starting and ending thread coordinates (row, nzv)
-        thread_coord = merge_path_search(diagonal, nrows, nnz, cp, nz_indices)
-        thread_coord_end = merge_path_search(diagonal_end, nrows, nnz, cp, nz_indices)
-
-        # Consume merge items, whole rows first
-        running_total = zero(eltype(output))
-        @inbounds while thread_coord.x < thread_coord_end.x
-            while thread_coord.y < cp[thread_coord.x+1] 
-                running_total += op(nzv[thread_coord.y]) * input[rv[thread_coord.y],col_idx]
-                thread_coord.y += 1
-            end
-
-            output[thread_coord.x,col_idx] += α * running_total
-            running_total = zero(eltype(output))
-            thread_coord.x += 1 
-        end
-       
-        # May have thread end up partially consuming a row.
-        # Save result form partial consumption and do one pass at the end to add it back to y
-        @inbounds while thread_coord.y < thread_coord_end.y
-            running_total += op(nzv[thread_coord.y]) * input[rv[thread_coord.y],col_idx]
-            thread_coord.y += 1
-        end
-
-        # Save carry-outs
-        @inbounds row_carry_out[tid] = thread_coord_end.x
-        @inbounds value_carry_out[tid] = running_total
-
-    end
-
-    @inbounds for tid in 1:num_threads
-        if row_carry_out[tid] <= nrows
-            output[row_carry_out[tid],col_idx] += α * value_carry_out[tid]
-        end
-    end
-
-end
-
 for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
     @eval begin
     """
@@ -179,11 +104,9 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
                 β != 0 ? rmul!(C, β) : fill!(C, zero(eltype(C)))
             end
 
-
             nzv = nonzeros(A)
             rv = rowvals(A)
             cp = getcolptr(A)
-        
             nnz = length(nzv) 
             
             nrows = A.n

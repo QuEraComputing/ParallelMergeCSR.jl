@@ -1,21 +1,58 @@
+using BenchmarkTools
 using ParallelMergeCSR
 using SparseArrays
-using SparseArrays: getcolptr
-using ProfileView
-using Random
-using BenchmarkTools
-using Profile
-using PProf
-using Base.Threads
+using SparseMatricesCSR
+using ThreadedSparseCSR
+ThreadedSparseCSR.get_num_threads()
 
-nthreads()
-rng = MersenneTwister(0)
-N = 10000000
-A = sprand(rng,N,N,log(N)/N)
-x = rand(rng,N)
-y = rand(rng,N)
-ParallelMergeCSR.mul!(x,(transpose(A)),y,0.0,1.0)
-SparseArrays.mul!(x,(transpose(A)),y,0.0,1.0)
+function benchmark(A,x)
 
-@benchmark ParallelMergeCSR.mul!($x,$(transpose(A)),$y,0.0,1.0) samples=100 evals=1 seconds=172800
-@benchmark SparseArrays.mul!($x,$(transpose(A)),$y,0.0,1.0) samples=100 evals=1 seconds=172800
+    y = similar(x)
+    return @benchmark ParallelMergeCSR.mul!($y, $(transpose(A)), $x, 1.0, 0.0)
+end
+
+function benchmark_base(A,x)
+    y = similar(x)
+    return @benchmark SparseArrays.mul!($y, $(transpose(A)), $x, 1.0, 0.0)
+end
+
+function benchmark_tmul(csrA,x)
+    y = similar(x)
+    return @benchmark tmul!($y, $csrA, $x, 1.0, 0.0)
+end
+
+function benchmark_bmul(csrA,x)
+    y = similar(x)
+    return @benchmark bmul!($y, $csrA, $x, 1.0, 0.0)
+end
+
+reports = Dict(
+    "this" => [],
+    "base" => [],
+    "tmul" => [],
+    "bmul" => [],
+)
+
+for n in 4:2:20
+    A = sprand(2^n,2^n,n/2^n)
+    x = rand(2^n)
+    csrA = SparseMatrixCSR(transpose(sprand(2^n, 2^n, 1e-4)));
+
+    @info "benchmarking" n
+    push!(reports["this"], benchmark(A,x))
+    push!(reports["base"], benchmark_base(A,x))
+    push!(reports["tmul"], benchmark_tmul(csrA,x))
+    push!(reports["bmul"], benchmark_bmul(csrA,x))
+end
+
+speedup = map(reports["base"], reports["this"]) do br, r
+    median(br).time / median(r).time
+end
+
+speedup = map(reports["base"], reports["tmul"]) do br, r
+    median(br).time / median(r).time
+end
+
+speedup = map(reports["base"], reports["bmul"]) do br, r
+    median(br).time / median(r).time
+end
