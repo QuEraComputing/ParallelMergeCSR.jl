@@ -1,6 +1,7 @@
 module ParallelMergeCSR
 
 using Base.Threads
+using Polyester
 using SparseArrays
 using LinearAlgebra: Adjoint,adjoint,Transpose,transpose
 using SparseArrays: AbstractSparseMatrixCSC,
@@ -138,7 +139,7 @@ function merge_csr_mv!(α::Number, A::AbstractSparseMatrixCSC, input::StridedVec
     value_carry_out = zeros(eltype(output), num_threads) # value must match output
 
     # Julia threads start id by 1, so make sure to offset!
-    @threads for tid in 1:num_threads
+    @batch for tid in 1:num_threads
         diagonal = min(items_per_thread * (tid - 1), num_merge_items)
         diagonal_end = min(diagonal + items_per_thread, num_merge_items)
 
