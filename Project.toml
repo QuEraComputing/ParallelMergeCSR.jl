@@ -1,7 +1,7 @@
 name = "ParallelMergeCSR"
 uuid = "c4b929cc-6141-4ba4-8849-280a863346e1"
 authors = ["Phillip Weinberg <pweinberg@quera.com>", "John Long <jlong@quera.com>"]
-version = "1.1.0"
+version = "1.0.0"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -11,6 +11,8 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 julia = "1.8"
+Polyester = "0.7.2"
+StaticArrays = "1.5.19"
 
 [extras]
 Coverage = "a2441757-f6aa-5fb2-8edb-039e3f45d037"
