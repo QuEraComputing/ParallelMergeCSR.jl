@@ -17,6 +17,10 @@ ParallelMergeCSR allows you to perform *multithreaded* [CSC formatted sparse Mat
 
 ParallelMergeCSR only has one function intended for use: `mul!`, which is used for both Sparse Matrix - Dense Vector and Sparse Matrix - Dense Matrix multiplication. The function is not exported by default to avoid conflict with `LinearAlgebra.mul!` and must be invoked through its fully qualified name `ParallelMergeCSR.mul!`.
 
+## Supported Platforms
+
+ParallelMergeCSR takes advantage of the [Polyester.jl](https://github.com/JuliaSIMD/Polyester.jl) package for multithreading support. Unfortunately, Polyester has known issues with working on Mac OS and ParallelMergeCSR should be used on Linux platforms only.
+
 ## Installation
 
 You can install ParallelMergeCSR through the Julia package manager interface (just hit `]` when you're in the Julia prompt) by typing the following:
