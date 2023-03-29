@@ -19,10 +19,10 @@ ParallelMergeCSR only has one function intended for use: `mul!`, which is used f
 
 ## Installation
 
-### NOTICE
-It will take *three days* before this package becomes part of the Julia registry meaning you currently cannot `add ParallelMergeCSR` via the Julia package manager.
-
-To circumvent this, just perform `add` with the URL of this repository.
+You can install ParallelMergeCSR through the Julia package manager interface (just hit `]` when you're in the Julia prompt) by typing the following:
+```
+add ParallelMergeCSR
+```
 
 ## Usage
 
