@@ -14,7 +14,6 @@ using SparseArrays: AbstractSparseMatrixCSC,
                     rowvals, 
                     rmul!
 using Polyester: @batch
-using StaticArrays
 
 
 struct Counter end
@@ -109,12 +108,11 @@ for (T, t) in ((Adjoint, adjoint), (Transpose, transpose))
             num_merge_items = nnz + nrows # preserve the dimensions of the original matrix
         
             num_threads = nthreads()
-            num_threads > 1024 && error("ParallelMergeCSR.jl only supports up to 1024 threads.")
         
             items_per_thread = (num_merge_items + num_threads - 1) ÷ num_threads
         
-            row_carry_out = zeros(MVector{1024,eltype(cp)})
-            value_carry_out = zeros(MVector{1024,eltype(C)}) # value must match output
+            row_carry_out = zeros(eltype(cp), num_threads)
+            value_carry_out = zeros(eltype(C), num_threads) # value must match output
         
 
             for k in 1:size(C,2)
