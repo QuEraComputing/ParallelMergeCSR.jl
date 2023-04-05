@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         julia-num-threads: [1,2,4,8]
-        julia-version: ['1.8']
+        julia-version: ['1.6']
         julia-arch: [x64]
         os: [ubuntu-latest]
     #1, 2, 4, 8 thread test
