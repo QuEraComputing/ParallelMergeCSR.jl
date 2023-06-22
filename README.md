@@ -1,6 +1,6 @@
 # ParallelMergeCSR.jl
 
-[![Build Status](https://github.com/QuEraComputing/Bloqade.jl/workflows/CI/badge.svg)](https://github.com/QuEraComputing/Bloqade.jl/actions)
+[![Build Status](https://github.com/QuEraComputing/ParallelMergeCSR.jl/workflows/CI/badge.svg)](https://github.com/QuEraComputing/ParallelMergeCSR.jl/actions)
 [![codecov](https://codecov.io/gh/QuEraComputing/ParallelMergeCSR.jl/branch/main/graph/badge.svg?token=P0UCC5CAVB)](https://codecov.io/gh/QuEraComputing/ParallelMergeCSR.jl)
 
 <p>
