@@ -1,0 +1,30 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: ParallelMergeCSR.jl
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Phillip
+    family-names: Weinberg
+    orcid: 'https://orcid.org/0000-0002-0654-9761'
+    affiliation: QuEra Computing Inc.
+    email: pweinberg@quera.com
+  - given-names: John
+    family-names: Long
+    email: jlong@quera.com
+    affiliation: QuEra Computing Inc.
+    orcid: 'https://orcid.org/0009-0005-7557-197X'
+repository-code: 'https://github.com/QuEraComputing/ParallelMergeCSR.jl'
+abstract: >-
+  An implementation/port of Merrill and Garland's
+  Merge-based Parallel Sparse Matrix-Vector Multiplication
+  (10.1109/SC.2016.57) paper in the Julia Programming
+  Language  
+keywords:
+  - julia
+  - matrix multiplication
+license: Apache-2.0
